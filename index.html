@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1a3a6b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Bulletins">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="shortcut icon" href="favicon.ico">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<title>Bulletin Primaire - بيان النقط</title>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, sans-serif; }
+  body { margin: 0; background: #f0f2f5; padding: 20px; }
+  h1 { text-align: center; color: #1a3a6b; }
+
+  .container {
+    max-width: 1200px; margin: auto; background: #fff;
+    padding: 25px; border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  }
+
+  .form-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
+    margin-bottom: 20px;
+  }
+  .form-grid label { display: block; font-weight: 600; margin-bottom: 5px; color: #333; font-size: 14px; }
+  .form-grid input, .form-grid select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; background: #fff; }
+
+  h3.section-title {
+    color: #1a3a6b; border-bottom: 2px solid #1a3a6b;
+    padding-bottom: 6px; margin-top: 25px;
+  }
+
+  .tabs {
+    display: flex; gap: 5px; margin-bottom: 15px;
+    border-bottom: 2px solid #1a3a6b;
+    flex-wrap: wrap;
+  }
+  .tab-btn {
+    background: #eaf0f8; color: #1a3a6b;
+    border: none; padding: 10px 18px;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer; font-size: 14px;
+    font-weight: 600; margin: 0;
+  }
+  .tab-btn.active { background: #1a3a6b; color: #fff; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .import-box {
+    padding: 20px; background: #f5f7fa;
+    border: 2px dashed #1a3a6b;
+    border-radius: 10px; margin-bottom: 20px;
+  }
+  .import-box h4 { margin-top: 0; color: #1a3a6b; font-size: 15px; }
+  .import-box .info { font-size: 13px; color: #666; margin: 8px 0; line-height: 1.6; }
+  .import-box .info code { background: #fff; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #b83232; }
+
+  .eleves-list {
+    max-height: 400px; overflow-y: auto;
+    border: 2px solid #000; border-radius: 8px; margin-top: 15px;
+  }
+  table.eleves-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.eleves-table th {
+    background: #1a3a6b; color: #fff;
+    padding: 8px 6px; text-align: center;
+    position: sticky; top: 0; border: 1px solid #000;
+  }
+  table.eleves-table td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+  table.eleves-table tr:nth-child(even) { background: #f9fafc; }
+
+  button {
+    background: #1a3a6b; color: #fff; border: none;
+    padding: 7px 14px; border-radius: 5px; cursor: pointer;
+    font-size: 13px; margin: 2px;
+  }
+  button:hover { background: #0f2647; }
+  .btn-green { background: #14803c; }
+  .btn-green:hover { background: #0e5c2b; }
+  .btn-red { background: #b83232; }
+  .btn-red:hover { background: #8c2424; }
+  .btn-orange { background: #e67e22; }
+  .btn-orange:hover { background: #b8651a; }
+  .btn-blue { background: #2c5aa0; }
+  .btn-blue:hover { background: #1e3f75; }
+  .btn-purple { background: #6a3fb5; }
+  .btn-purple:hover { background: #4e2d8a; }
+  .btn-small { padding: 3px 8px; font-size: 11px; }
+  .btn-add-unite { background: #6a3fb5; }
+  .btn-add-unite:hover { background: #4e2d8a; }
+
+  .actions { text-align: center; margin-top: 25px; }
+
+  #bulletin {
+    margin-top: 30px; padding: 20px; background: #fff;
+    display: none; width: 100%; position: relative;
+  }
+
+  .bulletin-header {
+    display: grid; grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    border-bottom: 2px solid #000;
+    padding-bottom: 7px; margin-bottom: 8px; gap: 8px;
+  }
+
+  .logo-zone {
+    display: flex; justify-content: center; align-items: center;
+    width: 100px; height: 100px; background: #fff;
+    border-radius: 0; border: 2px solid #000; overflow: hidden;
+  }
+  .logo-zone img { max-width: 92%; max-height: 92%; object-fit: contain; }
+  .logo-zone .logo-placeholder { font-size: 12px; color: #000; text-align: center; line-height: 1.2; font-weight: bold; font-family: 'Cairo', 'Amiri', Arial; }
+
+  .bulletin-header .fr { text-align: left; font-size: 11px; color: #000; font-weight: bold; line-height: 1.3; }
+  .bulletin-header .ar { text-align: right; direction: rtl; font-family: 'Amiri', 'Cairo', 'Traditional Arabic', Arial; font-size: 14px; color: #000; font-weight: bold; line-height: 1.3; }
+
+  .bulletin-title {
+    text-align: center; font-size: 17px; font-weight: bold;
+    margin: 6px 0 4px 0; color: #000;
+  }
+
+  .info-eleve {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    margin-bottom: 12px; font-size: 14px;
+    font-weight: bold;
+  }
+  .info-eleve div {
+    padding: 6px 10px; background: #fff;
+    border: 1px solid #000; border-radius: 4px; color: #000;
+    font-weight: bold;
+  }
+  .info-eleve div.info-ar {
+    text-align: right; direction: rtl;
+    font-family: 'Amiri', 'Cairo', 'Traditional Arabic', Arial;
+    font-size: 16px; background: #fff;
+    padding-right: 12px; color: #000;
+    font-weight: bold;
+  }
+
+  table.bulletin-table {
+    width: 100%; border-collapse: collapse;
+    border: 2px solid #000; margin-top: 6px;
+    table-layout: fixed; background: #fff;
+  }
+  table.bulletin-table col.col-matiere     { width: 22%; }
+  table.bulletin-table col.col-note-fr     { width: 11%; }
+  table.bulletin-table col.col-note-ar     { width: 11%; }
+  table.bulletin-table col.col-matiere-ar  { width: 22%; }
+  table.bulletin-table col.col-unite-fr    { width: 17%; }
+  table.bulletin-table col.col-unite-ar    { width: 17%; }
+
+  table.bulletin-table th {
+    border: 1px solid #000; padding: 6px 4px; font-size: 12.5px;
+    background: #fff; color: #000; text-align: center; font-weight: bold;
+    word-wrap: break-word; overflow-wrap: break-word;
+  }
+  table.bulletin-table th.th-ar { font-family: 'Amiri', 'Cairo', 'Traditional Arabic', Arial; font-size: 14px; font-weight: bold; }
+  table.bulletin-table td {
+    border: 1px solid #000; padding: 5px 5px; font-size: 12.5px;
+    text-align: center; vertical-align: middle;
+    background: #fff; color: #000;
+    font-weight: bold;
+    word-wrap: break-word; overflow-wrap: break-word;
+  }
+  table.bulletin-table td.nom-fr { text-align: left; padding-left: 10px; color: #000; font-weight: bold; }
+  table.bulletin-table td.nom-ar {
+    text-align: right; padding-right: 10px; direction: rtl;
+    font-family: 'Amiri', 'Cairo', 'Traditional Arabic', Arial; font-size: 14px; color: #000;
+    font-weight: bold;
+  }
+  table.bulletin-table td.cell-unite {
+    background: #fff; color: #000;
+    font-weight: bold; text-align: center; font-size: 12.5px;
+  }
+  table.bulletin-table td.cell-unite-ar {
+    background: #fff; color: #000;
+    font-weight: bold; direction: rtl;
+    font-family: 'Amiri', 'Cairo', 'Traditional Arabic', Arial; font-size: 13px; text-align: center;
+  }
+
+  .appreciation-box {
+    margin-top: 12px; padding: 12px 20px;
+    background: #fff; border: 2px solid #000;
+    border-radius: 8px; text-align: center;
+  }
+  .appreciation-box .label {
+    font-size: 12px; color: #000; margin-bottom: 5px;
+    text-transform: uppercase; letter-spacing: 1.5px; font-weight: bold;
+  }
+
+  .signature {
+    margin-top: 25px;
+    display: flex;
+    justify-content: flex-end;
+    page-break-inside: avoid;
+  }
+  .signature .sign-dir {
+    text-align: center; font-size: 14px; color: #000;
+    font-weight: bold; padding: 8px 20px;
+    font-family: 'Amiri', 'Cairo', 'Traditional Arabic', Arial;
+  }
+  .signature + .signature { display: none !important; }
+
+  #loading {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6); z-index: 9999;
+    justify-content: center; align-items: center;
+  }
+  #loading .box {
+    background: #fff; padding: 25px 40px; border-radius: 10px;
+    font-size: 16px; font-weight: bold; color: #1a3a6b; text-align: center;
+  }
+  #loading .box .progress { margin-top: 10px; font-size: 14px; color: #666; }
+
+  @media print {
+    body { background: #fff; padding: 0; }
+    .container { box-shadow: none; padding: 0; max-width: 100%; }
+    .no-print { display: none !important; }
+    #bulletin { display: block !important; margin: 0; padding: 20px; }
+    table.bulletin-table { page-break-inside: avoid; }
+  }
+
+
+  /* ===== Interface moderne (écran uniquement : le bulletin n'est pas modifié) ===== */
+  @media screen {
+    :root { --ink:#0f1b33; --mut:#5b6784; --line:#e3e8f2; --navy:#1a3a6b; --ac:#2f6bff; --soft:#eef3fb; }
+    [hidden] { display: none !important; }
+    body { background: radial-gradient(1100px 460px at 50% -120px,#d9e5fb,transparent), #f1f4fa; padding-bottom: 130px; color: var(--ink); }
+    .container { background:#fff; border:1px solid var(--line); border-radius:22px; box-shadow:0 18px 50px -24px rgba(26,58,107,.35); }
+    h1.no-print { display:flex; align-items:center; gap:14px; background:#fff; color:var(--ink); border:1px solid var(--line); border-radius:18px; padding:12px 16px; margin:0 0 22px; text-align:left; font-size:19px; box-shadow:0 6px 20px -10px rgba(26,58,107,.3); }
+    h1.no-print .ttl { display:flex; flex-direction:column; line-height:1.2; font-weight:800; }
+    h1.no-print .ttl small { font-size:12px; font-weight:500; color:var(--mut); margin-top:3px; }
+    h1.no-print #btnInstall { margin-left:auto; font-size:13px; }
+    /* Barre d'onglets flottante en bas */
+    .tabs { position:fixed; left:50%; transform:translateX(-50%); bottom:max(14px, env(safe-area-inset-bottom)); z-index:50; display:flex; gap:4px; margin:0; padding:6px; border:1px solid var(--line); border-radius:24px; background:rgba(255,255,255,.9); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); box-shadow:0 16px 44px -10px rgba(15,27,51,.45); }
+    .tabs .tab-btn { display:flex; flex-direction:column; align-items:center; gap:3px; min-width:92px; margin:0; padding:9px 14px; border-radius:18px; background:transparent; color:var(--mut); box-shadow:none; font-size:11.5px; font-weight:700; line-height:1.1; transform:none; }
+    .tabs .tab-btn .ti { font-size:21px; line-height:1; }
+    .tabs .tab-btn:hover { background:var(--soft); color:var(--navy); transform:none; box-shadow:none; }
+    .tabs .tab-btn.active { background:var(--navy); color:#fff; box-shadow:0 8px 18px -8px rgba(26,58,107,.8); }
+    h3.section-title { border-bottom:none; border-left:5px solid var(--ac); padding:6px 0 6px 12px; margin:26px 0 12px; background:linear-gradient(90deg,var(--soft),transparent); border-radius:0 8px 8px 0; font-size:17px; }
+    button { border-radius:10px; padding:9px 16px; font-weight:600; box-shadow:0 1px 3px rgba(0,0,0,.18); transition:transform .12s, box-shadow .12s, filter .12s; }
+    button:hover { transform:translateY(-1px); box-shadow:0 6px 14px -6px rgba(0,0,0,.4); }
+    button:active { transform:none; box-shadow:none; }
+    .btn-small { padding:4px 10px; border-radius:8px; }
+    input[type=text], input[type=number], input[type=search], input:not([type]), select, textarea { transition:border-color .15s, box-shadow .15s; }
+    input:focus, select:focus, textarea:focus { outline:none; border-color:var(--ac) !important; box-shadow:0 0 0 4px rgba(47,107,255,.16); }
+    .form-grid label { font-size:13px; color:#44506a; }
+    .form-grid input, .form-grid select { border-radius:10px; padding:10px; }
+    .import-box { background:#f7f9fd; border:2px dashed #8aa6d6; border-radius:16px; }
+    .eleves-list { border:1px solid var(--line); border-radius:14px; }
+    table.eleves-table th { border:none; padding:10px 6px; }
+    table.eleves-table td { border:none; border-bottom:1px solid #edf0f6; padding:8px 6px; }
+    table.eleves-table tr:hover td { background:#eaf1fd; }
+    .pick-card { margin-top:18px; padding:16px; border-radius:16px; background:linear-gradient(135deg,#f3f7ff,#eaf1ff); border:1px solid #cfdcf6; }
+    .pick-t { font-weight:800; margin-bottom:10px; color:var(--navy); }
+    .pick-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .pick-row input, .pick-row select { flex:1 1 220px; min-width:0; padding:10px 12px; border:1px solid #c5d3ef; border-radius:10px; background:#fff; font-size:14px; }
+    #pickCount { font-size:12px; color:var(--mut); }
+    .container .gf-card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:16px; box-shadow:0 3px 12px rgba(26,58,107,.07); }
+    .container .gf-card .gf-card { background:#f8faff; box-shadow:none; }
+    .gf-t th { padding:6px 4px; font-size:12px; } .gf-t tr:nth-child(even) td { background:#f6f8fc; }
+    .gf-g { background:#fbfcff; border:1px solid var(--line) !important; border-radius:12px; padding:10px !important; margin-top:8px; }
+    .gf-m { background:var(--soft); padding:6px 8px; border-radius:8px; }
+    #loading { backdrop-filter:blur(3px); }
+    #loading .box { border-radius:16px; box-shadow:0 12px 40px rgba(0,0,0,.35); }
+    #loading .box::before { content:""; display:block; width:34px; height:34px; margin:0 auto 12px; border:4px solid #dbe4f3; border-top-color:var(--navy); border-radius:50%; animation:gfspin .8s linear infinite; }
+    .logo-upload-box.logo-missing { border:2px dashed #d62839 !important; background:#fff5f6 !important; }
+    .logo-shake { animation:gfshake .35s 3; }
+    @keyframes gfshake { 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+    .sync-card { margin-bottom:14px; background:linear-gradient(135deg,#f4fbf6,#eaf7ee); border-color:#bfe3c9; }
+    .sync-card .pick-t { color:#0d6b34; }
+    .sync-help { font-size:12.5px; color:var(--mut); margin-bottom:8px; line-height:1.5; }
+    .sync-help code { background:#fff; border:1px solid var(--line); padding:1px 6px; border-radius:6px; }
+    #syncLinks { width:100%; min-height:62px; padding:10px; border:1px solid #bfe3c9; border-radius:10px; font:12px/1.4 ui-monospace,Menlo,Consolas,monospace; margin-bottom:8px; }
+    #syncStatus { font-size:13px; }
+    .rm-back { position:fixed; inset:0; z-index:300; background:rgba(12,27,58,.55); backdrop-filter:blur(3px); display:flex; align-items:center; justify-content:center; padding:16px; }
+    .rm-box { background:#fff; border-radius:18px; width:min(680px,100%); max-height:82vh; overflow:auto; padding:22px; box-shadow:0 24px 60px rgba(0,0,0,.4); }
+    .rm-box h3 { margin:0 0 6px; font-size:19px; color:var(--navy); }
+    .rm-sum { font-size:13px; color:var(--mut); margin-bottom:12px; }
+    .rm-sec { font-weight:800; margin:12px 0 6px; font-size:14px; }
+    .rm-sec.err { color:#c62839; } .rm-sec.warn { color:#b45f06; }
+    .rm-it { font-size:13px; padding:7px 10px; border-radius:8px; margin-bottom:5px; line-height:1.45; }
+    .rm-it.err { background:#fdecee; } .rm-it.warn { background:#fff4e0; }
+    .rm-act { display:flex; gap:8px; justify-content:flex-end; margin-top:16px; flex-wrap:wrap; }
+    @keyframes gfspin { to { transform:rotate(360deg); } }
+  }
+  @media screen and (max-width: 700px) {
+    body { padding:10px 10px 110px; }
+    .container { border-radius:18px; }
+    .tabs { left:0; right:0; transform:none; bottom:0; border-radius:22px 22px 0 0; border-bottom:none; justify-content:space-around; padding:8px 8px calc(8px + env(safe-area-inset-bottom)); }
+    .tabs .tab-btn { flex:1; min-width:0; padding:8px 4px; }
+    h1.no-print { font-size:16px; padding:10px 12px; gap:10px; flex-wrap:wrap; }
+    h1.no-print .logo { width:38px; height:38px; }
+    .form-grid { grid-template-columns:1fr; }
+    table.saisie { display:block; overflow-x:auto; }
+    .eleves-list, #bulletin { overflow-x:auto; }
+    .logo-upload-box { flex-wrap:wrap !important; }
+    #logoInput { max-width:100%; }
+    .tab-content { overflow-x:hidden; }
+  }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="box">
+    ⏳ Génération en cours...
+    <div class="progress" id="progressText">0 / 0</div>
+  </div>
+</div>
+
+<div class="container">
+  <h1 class="no-print"><svg class="logo" viewBox="0 0 512 512" width="46" height="46" aria-hidden="true"><defs><linearGradient id="lg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1a3a6b"/><stop offset="1" stop-color="#2f6bff"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#lg1)"/><rect x="138" y="96" width="236" height="300" rx="26" fill="#fff"/><rect x="170" y="136" width="120" height="22" rx="11" fill="#1a3a6b"/><rect x="170" y="186" width="172" height="14" rx="7" fill="#c9d4ea"/><rect x="170" y="218" width="172" height="14" rx="7" fill="#c9d4ea"/><rect x="170" y="250" width="172" height="14" rx="7" fill="#c9d4ea"/><rect x="170" y="282" width="96" height="14" rx="7" fill="#c9d4ea"/><circle cx="360" cy="372" r="64" fill="#ffb703"/><path d="M332 372l20 20 38-42" stroke="#fff" stroke-width="20" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="ttl">Bulletin Primaire<small>بيان النقط · Générateur de bulletins</small></span><button id="btnInstall" class="btn-blue" hidden>⬇️ Installer l’app</button></h1>
+
+  <div class="tabs no-print">
+    <button class="tab-btn active" onclick="switchTab('tab-simple', this)"><span class="ti">👤</span>Élève</button>
+    <button class="tab-btn" onclick="switchTab('tab-masse', this)"><span class="ti">👥</span>Bulletins</button>
+    <button class="tab-btn" onclick="switchTab('tab-gfn', this)"><span class="ti">📊</span>Sheets</button>
+    <button class="tab-btn" onclick="switchTab('tab-aide', this)"><span class="ti">📖</span>Aide</button>
+  </div>
+
+  <!-- TAB 1 -->
+  <div id="tab-simple" class="tab-content active no-print">
+    <h3 class="section-title">👤 Informations de l'élève / معلومات التلميذ</h3>
+    <div class="form-grid">
+      <div><label>Nom de l'élève (FR)</label><input type="text" id="nomFr" placeholder="Ahmed Benali"></div>
+      <div><label>اسم التلميذ (AR)</label><input type="text" id="nomAr" placeholder="أحمد بنعلي" dir="rtl"></div>
+      <div><label>Classe (FR)</label><input type="text" id="classe" placeholder="4ème année A"></div>
+      <div><label>القسم (AR)</label><input type="text" id="classeAr" placeholder="القسم بالعربية" dir="rtl"></div>
+      <div>
+        <label>Semestre / الأسدوس</label>
+        <select id="semestre">
+          <option value="1er Semestre / الأسدوس الأول">1er Semestre / الأسدوس الأول</option>
+          <option value="2ème Semestre / الأسدوس الثاني">2ème Semestre / الأسدوس الثاني</option>
+        </select>
+      </div>
+      <div><label>Année scolaire / السنة الدراسية</label><input type="text" id="annee" placeholder="2026/2027"></div>
+      <div><label>Établissement (FR)</label><input type="text" id="etab" placeholder="Nom de l'école"></div>
+      <div><label>المؤسسة (AR)</label><input type="text" id="etabAr" placeholder="اسم المؤسسة" dir="rtl"></div>
+      <div><label>Nom du professeur / الأستاذ</label><input type="text" id="prof" placeholder="Nom du professeur"></div>
+    </div>
+
+    <h3 class="section-title">🏫 Logo de l'école / شعار المدرسة</h3>
+    <div class="logo-upload-box" style="display:flex; align-items:center; gap:15px; padding:10px 15px; background:#f5f7fa; border-radius:8px; margin-bottom:15px;">
+      <label for="logoInput" style="font-weight:600;color:#1a3a6b;font-size:14px;">Logo de l’école <span style="color:#d62839;font-weight:700">* obligatoire</span> :</label>
+      <input type="file" id="logoInput" accept="image/*" onchange="chargerLogo(event)" style="padding:6px;border:1px solid #ccc;border-radius:6px;background:#fff;font-size:13px;">
+      <div class="logo-preview" id="logoPreview" style="width:60px;height:60px;border:2px dashed #ccc;border-radius:8px;display:flex;align-items:center;justify-content:center;background:#fff;overflow:hidden;font-size:11px;color:#999;">Aucun logo</div>
+      <button class="btn-red btn-small" onclick="supprimerLogo()">✖ Supprimer</button>
+    </div>
+
+    <h3 class="section-title">📖 Saisie des notes / إدخال النقط</h3>
+
+    <table class="saisie" style="width:100%;border-collapse:collapse;margin-top:10px;border:2px solid #000;background:#fff;table-layout:fixed;">
+      <thead>
+        <tr>
+          <th style="background:#1a3a6b;color:#fff;padding:8px 5px;font-size:13px;border:1px solid #000;text-align:center;">Unité / الوحدة</th>
+          <th style="background:#1a3a6b;color:#fff;padding:8px 5px;font-size:13px;border:1px solid #000;text-align:center;">Matière (FR)</th>
+          <th style="background:#1a3a6b;color:#fff;padding:8px 5px;font-size:13px;border:1px solid #000;text-align:center;">Note /10</th>
+          <th style="background:#1a3a6b;color:#fff;padding:8px 5px;font-size:13px;border:1px solid #000;text-align:center;">النقطة \ 10</th>
+          <th style="background:#1a3a6b;color:#fff;padding:8px 5px;font-size:13px;border:1px solid #000;text-align:center;font-family:'Amiri','Cairo','Traditional Arabic',Arial;font-size:16px;">المادة</th>
+          <th style="background:#1a3a6b;color:#fff;padding:8px 5px;font-size:13px;border:1px solid #000;text-align:center;font-family:'Amiri','Cairo','Traditional Arabic',Arial;font-size:16px;">الوحدة</th>
+        </tr>
+      </thead>
+      <tbody id="corpsSaisie"></tbody>
+    </table>
+
+    <div class="actions">
+      <button class="btn-add-unite" onclick="ajouterUnite()">➕ Ajouter une unité</button>
+      <button class="btn-green" onclick="genererBulletin()">✅ Générer le bulletin</button>
+      <button class="btn-orange" onclick="telechargerPDF()">📥 Télécharger en PDF</button>
+      <button class="btn-red" onclick="window.print()">🖨️ Imprimer</button>
+    </div>
+  </div>
+
+  <!-- TAB 2 : MASSE -->
+  <div id="tab-masse" class="tab-content no-print">
+    <h3 class="section-title">👥 Génération en masse</h3>
+
+    <div class="import-box">
+      <h4>📥 Importer un fichier Excel (.xlsx) ou CSV</h4>
+      <div class="info">
+        Le fichier doit contenir les colonnes :<br>
+        <code>nom_fr</code>, <code>nom_ar</code>, <code>classe</code>, <code>classe_ar</code>,
+        <code>matiere_fr</code>, <code>matiere_ar</code>, <code>unite_fr</code>, <code>unite_ar</code>,
+        <code>note_fr</code>, <code>note_ar</code><br>
+        <b>ou</b> le format large exporté de Google Sheets (<code>nom_fr, nom_ar, classe, classe_ar, fr_1, fr_2 … ar_1, ar_2 …</code>, tous les onglets sont lus ; les noms des matières sont lus dans l’en-tête : ligne 2 « matière » et ligne 3 « unité » sous <code>fr_1, ar_1…</code>, puis <b>une seule ligne par élève</b> à partir de la ligne 4) généré dans l’onglet « Feuille de notes ».
+      </div>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="importerFichier(event)" style="padding:8px;border:1px solid #ccc;border-radius:6px;background:#fff;">
+      <button class="btn-blue" onclick="telechargerModele()">📄 Télécharger le modèle Excel</button>
+    </div>
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:15px;">
+      <button class="btn-green" onclick="genererTousBulletins()">✅ Générer tous les bulletins</button>
+      <button class="btn-orange" onclick="telechargerTousPDF()">📦 ZIP des PDF (par classe)</button>
+      <button class="btn-blue" onclick="telechargerPDFUnique()">📄 PDF unique (tous les élèves)</button>
+      <button class="btn-purple" id="btnControle">🔍 Contrôler les notes</button>
+      <button class="btn-red" onclick="viderEleves()">🗑️ Vider la liste</button>
+      <span id="compteurEleves" style="margin-left:auto;font-weight:bold;color:#1a3a6b;">0 élève(s)</span>
+    </div>
+
+    <div class="pick-card sync-card">
+      <div class="pick-t">🔄 Synchroniser depuis Google Sheets</div>
+      <div class="sync-help">Collez <b>un lien par ligne</b> : le lien « Publier sur le web » du classeur (<i>Fichier → Partager → Publier sur le web → Document entier → Microsoft Excel (.xlsx)</i>), ou pour un seul onglet <code>6ème A | lien-csv</code>. Un clic sur « Actualiser » recharge toutes les notes.</div>
+      <textarea id="syncLinks" placeholder="https://docs.google.com/spreadsheets/d/e/2PACX-…/pub?output=xlsx"></textarea>
+      <div class="pick-row"><button class="btn-blue" id="syncGo">🔄 Actualiser les notes</button><span id="syncStatus"></span></div>
+    </div>
+
+    <div class="pick-card">
+      <div class="pick-t">🎯 Bulletin d’un seul élève</div>
+      <div class="pick-row">
+        <input id="pickSearch" type="search" placeholder="🔎 Rechercher un élève ou une classe…">
+        <select id="pickSel"><option value="">— importez un fichier —</option></select>
+        <button class="btn-blue" id="pickView">👁️ Voir</button>
+        <button class="btn-green" id="pickPdf">📄 Télécharger son PDF</button>
+        <span id="pickCount"></span>
+      </div>
+    </div>
+
+    <div class="eleves-list" id="elevesList" style="margin-top:14px">
+      <p style="text-align:center;color:#999;padding:20px;">Aucun élève importé</p>
+    </div>
+  </div>
+
+  <!-- TAB : FEUILLE DE NOTES -->
+  <div id="tab-gfn" class="tab-content no-print">
+    <style>.gf-card{background:#f5f7fa;border:1px solid #d6dbe6;border-radius:10px;padding:12px;margin:12px 0}.gf-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.gf-t{width:100%;border-collapse:collapse;font-size:12px}.gf-t th{background:#1a3a6b;color:#fff;padding:4px}.gf-t td{padding:2px}.gf-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:6px;align-items:end;border-top:1px dashed #bbb;padding:8px 0}.gf-g label{font-size:11px;color:#555}.gf-w{grid-column:span 2}.gf-m{font-size:12px;color:#1a3a6b;font-weight:bold}</style>
+    <h3 class="section-title">📊 Générateur de feuille de notes (IMPORTRANGE)</h3>
+    <div class="gf-card"><b>1. Élèves</b> <span style="font-size:12px;color:#666">— collez depuis Excel (nom_fr, nom_ar, classe, classe_ar) ou séparez par <code>;</code></span>
+      <textarea id="gf-stu" style="width:100%;box-sizing:border-box;min-height:100px;margin-top:6px;font-family:monospace;font-size:12px" placeholder="Ahmed Benali;أحمد بنعلي;6ème A;السادس أ"></textarea>
+      <div id="gf-cnt" style="font-size:12px;color:#666">0 élève</div></div>
+    <div class="gf-card"><b>2. Structure de chaque classe</b><div id="gf-cls"></div></div>
+    <div class="gf-card"><b>3. Options</b>
+      <div class="gf-h" style="margin-top:6px">
+        <label><input type="radio" name="gfmode" value="nom" checked> Chercher par nom (sûr)</label>
+        <label><input type="radio" name="gfmode" value="pos"> Par position (même ordre)</label>
+        <label>Séparateur <select id="gf-sep"><option value=";">;</option><option value=",">,</option></select></label>
+        <button class="btn-green" id="gf-go">⚙️ Générer les onglets</button></div></div>
+    <div class="gf-card"><b>4. Sauvegarde de la configuration</b> <span style="font-size:12px;color:#666">(élèves + structure + sources)</span>
+      <div class="gf-h" style="margin:8px 0"><button class="btn-blue" id="gf-jx">💾 Exporter JSON (local)</button><button class="btn-orange" id="gf-ji">📂 Importer JSON</button><input type="file" id="gf-jin" accept=".json" style="display:none"></div>
+      <div class="gf-g" style="border-top:1px solid #ccc">
+        <label>GitHub : utilisateur<input id="gf-gho" placeholder="monpseudo" style="width:100%;box-sizing:border-box;padding:4px"></label>
+        <label>Dépôt<input id="gf-ghr" placeholder="bulletins" style="width:100%;box-sizing:border-box;padding:4px"></label>
+        <label>Fichier<input id="gf-ghp" placeholder="config_bulletins.json" style="width:100%;box-sizing:border-box;padding:4px"></label>
+        <label>Branche<input id="gf-ghb" placeholder="main" style="width:100%;box-sizing:border-box;padding:4px"></label>
+        <label class="gf-w">Token (Contents : lecture/écriture)<input id="gf-ght" type="password" placeholder="github_pat_..." style="width:100%;box-sizing:border-box;padding:4px"></label>
+        <label style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="gf-ghm"> mémoriser le token ici</label></div>
+      <div class="gf-h"><button class="btn-green" id="gf-gs">☁️ Sauvegarder sur GitHub</button><button class="btn-blue" id="gf-gl">⬇️ Charger depuis GitHub</button><span id="gf-st" style="font-size:13px"></span></div>
+      <div style="font-size:12px;color:#b83232;margin-top:6px">⚠️ Le fichier contient les noms des élèves : utilisez un dépôt <b>privé</b> et un token limité à ce seul dépôt.</div></div>
+    <div id="gf-out"></div>
+  </div>
+
+  <!-- TAB 3 : AIDE -->
+  <div id="tab-aide" class="tab-content no-print">
+    <h3 class="section-title">📖 Format du fichier Excel / CSV</h3>
+    <p style="line-height:1.8;font-size:14px;">
+      Le fichier doit avoir <b>une ligne par matière par élève</b>. Voici un exemple :
+    </p>
+    <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:12px;">
+      <thead>
+        <tr style="background:#1a3a6b;color:#fff;">
+          <th style="border:1px solid #000;padding:6px;">nom_fr</th>
+          <th style="border:1px solid #000;padding:6px;">nom_ar</th>
+          <th style="border:1px solid #000;padding:6px;">classe</th>
+          <th style="border:1px solid #000;padding:6px;">classe_ar</th>
+          <th style="border:1px solid #000;padding:6px;">matiere_fr</th>
+          <th style="border:1px solid #000;padding:6px;">matiere_ar</th>
+          <th style="border:1px solid #000;padding:6px;">unite_fr</th>
+          <th style="border:1px solid #000;padding:6px;">unite_ar</th>
+          <th style="border:1px solid #000;padding:6px;">note_fr</th>
+          <th style="border:1px solid #000;padding:6px;">note_ar</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="border:1px solid #ccc;padding:6px;">Ahmed Benali</td>
+          <td style="border:1px solid #ccc;padding:6px;">أحمد بنعلي</td>
+          <td style="border:1px solid #ccc;padding:6px;">4ème A</td>
+          <td style="border:1px solid #ccc;padding:6px;">الرابع أ</td>
+          <td style="border:1px solid #ccc;padding:6px;">Expression orale</td>
+          <td style="border:1px solid #ccc;padding:6px;">القرآن الكريم</td>
+          <td style="border:1px solid #ccc;padding:6px;">Langue française</td>
+          <td style="border:1px solid #ccc;padding:6px;">اللغة العربية</td>
+          <td style="border:1px solid #ccc;padding:6px;">8</td>
+          <td style="border:1px solid #ccc;padding:6px;">10</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div id="bulletin"></div>
+</div>
+
+<script>
+let logoDataURL = "";
+let elevesData = {};
+
+function switchTab(tabId, btn) {
+  document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById(tabId).classList.add("active");
+  btn.classList.add("active");
+}
+
+function majEtatLogo() {
+  const box = document.querySelector(".logo-upload-box");
+  if (box) box.classList.toggle("logo-missing", !logoDataURL);
+}
+function setLogo(url) {
+  logoDataURL = url;
+  document.getElementById("logoPreview").innerHTML = `<img src="${url}" alt="Logo" style="max-width:100%;max-height:100%;object-fit:contain;">`;
+  try { localStorage.setItem("gb_logo", url); } catch (e) {}
+  majEtatLogo();
+}
+function chargerLogo(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {                       // réduit le logo (max 500 px) : fichier léger, PDF net
+      if (!img.width || !img.height) { setLogo(e.target.result); return; }
+      const k = Math.min(1, 500 / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      setLogo(c.toDataURL("image/png"));
+    };
+    img.onerror = function() { setLogo(e.target.result); };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function supprimerLogo() {
+  logoDataURL = "";
+  document.getElementById("logoInput").value = "";
+  document.getElementById("logoPreview").innerHTML = "Aucun logo";
+  try { localStorage.removeItem("gb_logo"); } catch (e) {}
+  majEtatLogo();
+}
+/* Le logo est obligatoire pour générer un bulletin */
+function logoManquant() {
+  if (logoDataURL) return false;
+  alert("⚠️ Le logo de l’école est obligatoire pour générer un bulletin.\nAjoutez-le dans l’onglet « Élève », section « Logo de l’école ».");
+  switchTab("tab-simple", document.querySelector(".tab-btn"));
+  const box = document.querySelector(".logo-upload-box");
+  if (box) { box.scrollIntoView({ behavior: "smooth", block: "center" }); box.classList.add("logo-shake"); setTimeout(() => box.classList.remove("logo-shake"), 1300); }
+  return true;
+}
+
+const groupeLangueFr = {
+  uniteFr: "Langue française",
+  uniteAr: "اللغة العربية",
+  matieres: [
+    { fr: "Expression orale",        ar: "القرآن الكريم" },
+    { fr: "Poésie",                  ar: "التربية الإسلامية" },
+    { fr: "Lecture / Compréhension", ar: "التواصل الشفهي" },
+    { fr: "Vocabulaire",             ar: "القراءة" },
+    { fr: "Projet de classe",        ar: "الشكل" },
+    { fr: "Expression écrite",       ar: "فهم المقروء" },
+    { fr: "Grammaire",               ar: "الصرف والتحويل" },
+    { fr: "Conjugaison",             ar: "التراكيب" },
+    { fr: "Orthographe / Dictée",    ar: "الملاء" },
+    { fr: "",                        ar: "الإنشاء" }
+  ]
+};
+
+const groupeAutres = {
+  lignes: [
+    { uniteFr: "Langue anglaise",    matiereFr: "Moyenne d'unité", matiereAr: "معدل الوحدة",       uniteAr: "مشروع الوحدة" },
+    { uniteFr: "Eveil scientifique", matiereFr: "Moyenne d'unité", matiereAr: "معدل الوحدة",       uniteAr: "النشاط العلمي" },
+    { uniteFr: "Education physique", matiereFr: "Moyenne d'unité", matiereAr: "معدل الوحدة",       uniteAr: "التربية التشكيلية" },
+    { uniteFr: "—",                  matiereFr: "",                matiereAr: "معدل الوحدة",       uniteAr: "الرياضيات" },
+    { uniteFr: "—",                  matiereFr: "",                matiereAr: "التاريخ",           uniteAr: "الاجتماعيات" },
+    { uniteFr: "",                   matiereFr: "",                matiereAr: "الجغرافيا",         uniteAr: "" },
+    { uniteFr: "",                   matiereFr: "",                matiereAr: "التربية المدنية",   uniteAr: "" }
+  ]
+};
+
+function ajouterGroupeLangue(g) {
+  const tbody = document.getElementById("corpsSaisie");
+  const nb = g.matieres.length;
+  g.matieres.forEach((m, idx) => {
+    const tr = document.createElement("tr");
+    tr.className = "ligne-matiere";
+    const valUFr = (idx === 0) ? g.uniteFr : "";
+    const valUAr = (idx === 0) ? g.uniteAr : "";
+    tr.innerHTML = `
+      <td style="border:1px solid #000;padding:3px;text-align:center;vertical-align:middle;background:#eaf0f8;font-weight:bold;">
+        <input type="text" class="u-fr gras" value="${valUFr}" style="width:100%;border:none;padding:5px;font-size:13px;text-align:center;background:transparent;font-weight:bold;color:#1a3a6b;">
+        ${idx === 0 ? `<br><button class="btn-red btn-small" onclick="supprimerBloc(this)">✖</button>` : ""}
+      </td>
+      <td style="border:1px solid #000;padding:3px;"><input type="text" class="m-fr" value="${m.fr}" style="width:100%;border:none;padding:5px;font-size:13px;text-align:left;padding-left:8px;background:transparent;"></td>
+      <td style="border:1px solid #000;padding:3px;"><input type="number" class="n-fr note" min="0" max="10" step="0.25" placeholder="—" style="width:100%;border:none;padding:5px;font-size:14px;text-align:center;background:transparent;font-weight:bold;color:#1a3a6b;"></td>
+      <td style="border:1px solid #000;padding:3px;"><input type="number" class="n-ar note" min="0" max="10" step="0.25" placeholder="—" dir="rtl" style="width:100%;border:none;padding:5px;font-size:14px;text-align:center;background:transparent;font-weight:bold;color:#14803c;"></td>
+      <td style="border:1px solid #000;padding:3px;"><input type="text" class="m-ar ar" value="${m.ar}" dir="rtl" style="width:100%;border:none;padding:5px;font-size:16px;text-align:right;padding-right:8px;background:transparent;font-family:'Amiri','Cairo','Traditional Arabic',Arial;"></td>
+      <td style="border:1px solid #000;padding:3px;text-align:center;vertical-align:middle;background:#eaf0f8;font-weight:bold;">
+        <input type="text" class="u-ar ar gras" value="${valUAr}" dir="rtl" style="width:100%;border:none;padding:5px;font-size:17px;text-align:center;background:transparent;font-weight:bold;color:#1a3a6b;font-family:'Amiri','Cairo','Traditional Arabic',Arial;">
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function ajouterGroupeAutres(g) {
+  const tbody = document.getElementById("corpsSaisie");
+  g.lignes.forEach(l => {
+    const tr = document.createElement("tr");
+    tr.className = "ligne-matiere";
+    tr.innerHTML = `
+      <td style="border:1px solid #000;padding:3px;background:#eaf0f8;"><input type="text" class="u-fr gras" value="${l.uniteFr || ''}" style="width:100%;border:none;padding:5px;font-size:13px;text-align:center;background:transparent;font-weight:bold;color:#1a3a6b;"></td>
+      <td style="border:1px solid #000;padding:3px;"><input type="text" class="m-fr" value="${l.matiereFr || ''}" style="width:100%;border:none;padding:5px;font-size:13px;text-align:left;padding-left:8px;background:transparent;"></td>
+      <td style="border:1px solid #000;padding:3px;"><input type="number" class="n-fr note" min="0" max="10" step="0.25" placeholder="—" style="width:100%;border:none;padding:5px;font-size:14px;text-align:center;background:transparent;font-weight:bold;color:#1a3a6b;"></td>
+      <td style="border:1px solid #000;padding:3px;"><input type="number" class="n-ar note" min="0" max="10" step="0.25" placeholder="—" dir="rtl" style="width:100%;border:none;padding:5px;font-size:14px;text-align:center;background:transparent;font-weight:bold;color:#14803c;"></td>
+      <td style="border:1px solid #000;padding:3px;"><input type="text" class="m-ar ar" value="${l.matiereAr || ''}" dir="rtl" style="width:100%;border:none;padding:5px;font-size:16px;text-align:right;padding-right:8px;background:transparent;font-family:'Amiri','Cairo','Traditional Arabic',Arial;"></td>
+      <td style="border:1px solid #000;padding:3px;background:#eaf0f8;"><input type="text" class="u-ar ar gras" value="${l.uniteAr || ''}" dir="rtl" style="width:100%;border:none;padding:5px;font-size:17px;text-align:center;background:transparent;font-weight:bold;color:#1a3a6b;font-family:'Amiri','Cairo','Traditional Arabic',Arial;"></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function ajouterUnite() {
+  ajouterGroupeLangue({
+    uniteFr: "Nouvelle unité",
+    uniteAr: "وحدة جديدة",
+    matieres: [{ fr: "", ar: "" }, { fr: "", ar: "" }]
+  });
+}
+
+function supprimerBloc(btn) {
+  if (!confirm("Supprimer ce bloc entier ?")) return;
+  const trMatiere = btn.closest("tr");
+  let next = trMatiere;
+  let first = true;
+  while (next) {
+    if (first) first = false;
+    else {
+      const inp = next.querySelector(".u-fr");
+      if (inp && inp.value.trim() !== "") break;
+    }
+    const toDelete = next;
+    next = next.nextElementSibling;
+    toDelete.remove();
+  }
+}
+
+function genererBulletin() {
+  if (logoManquant()) return;
+  const nomFr = document.getElementById("nomFr").value || "—";
+  const nomAr = document.getElementById("nomAr").value || "—";
+  const classe = document.getElementById("classe").value || "—";
+  const classeAr = document.getElementById("classeAr").value || "—";
+  const sem = document.getElementById("semestre").value || "—";
+  const annee = document.getElementById("annee").value || "—";
+  const etab = document.getElementById("etab").value || "—";
+  const etabAr = document.getElementById("etabAr").value || "—";
+
+  const tbody = document.getElementById("corpsSaisie");
+  const lignes = Array.from(tbody.children);
+
+  const infos = lignes.map(tr => {
+    if (!tr.classList.contains("ligne-matiere")) return null;
+    return {
+      matFR: tr.querySelector(".m-fr")?.value.trim() || "",
+      matAR: tr.querySelector(".m-ar")?.value.trim() || "",
+      nf: tr.querySelector(".n-fr")?.value || "",
+      na: tr.querySelector(".n-ar")?.value || "",
+      uFr: tr.querySelector(".u-fr")?.value.trim() || "",
+      uAr: tr.querySelector(".u-ar")?.value.trim() || ""
+    };
+  }).filter(Boolean);
+
+  const eleveUnique = { nomFr, nomAr, classe, classeAr, matieres: infos };
+  document.getElementById("bulletin").innerHTML = construireBulletinHTML(eleveUnique, sem, annee, etab, etabAr);
+  document.getElementById("bulletin").style.display = "block";
+  document.getElementById("bulletin").scrollIntoView({ behavior: "smooth" });
+}
+
+function telechargerPDF() {
+  if (logoManquant()) return;
+  const bulletin = document.getElementById("bulletin");
+  if (bulletin.style.display === "none" || !bulletin.innerHTML.trim()) {
+    alert("⚠️ Khass t'generi l'bulletin 9bel");
+    return;
+  }
+  document.getElementById("loading").style.display = "flex";
+  document.getElementById("progressText").textContent = "Génération...";
+  const nom = (document.getElementById("nomFr").value || "eleve").replace(/\s+/g, "_");
+  const sem = (document.getElementById("semestre").value || "semestre").replace(/\s+/g, "_").replace(/[\\/:*?"<>|]+/g, "-");
+
+  bulletinToCanvas(bulletin, { windowWidth: 1000 })
+    .then(canvas => {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+      ajouterCanvasAuPDF(doc, canvas);
+      sauverPDF(doc, `Bulletin_${nom}_${sem}.pdf`);
+      document.getElementById("loading").style.display = "none";
+    }).catch(err => {
+      console.error(err);
+      document.getElementById("loading").style.display = "none";
+      alert("❌ Mochkil f génération.");
+    });
+}
+
+function importerFichier(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => importerWorkbook(XLSX.read(new Uint8Array(e.target.result), { type: 'array' }));
+  reader.readAsArrayBuffer(file);
+}
+function importerWorkbook(workbook) {
+  const nx = v => (v === undefined || v === null || v === "") ? "" : String(v).replace(",", ".");
+  {
+    elevesData = {};
+    window.gfnImp = null;
+    const stName = workbook.SheetNames.find(n => n.trim().toLowerCase() === "structure");
+    if (stName) {
+      const imp = {};
+      XLSX.utils.sheet_to_json(workbook.Sheets[stName], { defval: "" }).forEach(r => {
+        const k = parseInt(r.ligne); if (!k) return;
+        const c = String(r.classe || "").trim() || "*";
+        (imp[c] = imp[c] || []).push({ k, uFr: String(r.unite_fr || "").trim(), mFr: String(r.matiere_fr || "").trim(), mAr: String(r.matiere_ar || "").trim(), uAr: String(r.unite_ar || "").trim() });
+      });
+      Object.values(imp).forEach(a => a.sort((x, y) => x.k - y.k));
+      if (Object.keys(imp).length) window.gfnImp = imp;
+    }
+    workbook.SheetNames.forEach(sn => {
+      if (sn === stName) return;
+      const aoa = XLSX.utils.sheet_to_json(workbook.Sheets[sn], { header: 1, defval: "" });
+      if (!aoa.length) return;
+      const hd = aoa[0].map(h => String(h).trim());
+      const lab = r => aoa[r] ? String(aoa[r][0]).trim().toLowerCase().replace(/[éèê]/g, "e") : "";
+      let start = 1, meta = null;
+      if (lab(1) === "matiere") {
+        start = lab(2) === "unite" ? 3 : 2;
+        meta = {};
+        hd.forEach((h, ci) => {
+          const m = h.match(/^(fr|ar)_(\d+)$/); if (!m) return;
+          (meta[+m[2]] = meta[+m[2]] || {})[m[1]] = { n: String(aoa[1][ci] == null ? "" : aoa[1][ci]).trim(), u: start === 3 ? String(aoa[2][ci] == null ? "" : aoa[2][ci]).trim() : "" };
+        });
+      }
+      const rows = aoa.slice(start).map(a => { const o = {}; hd.forEach((h, ci) => { if (h) o[h] = a[ci] === undefined ? "" : a[ci]; }); return o; });
+      rows.forEach(row => {
+        const nomFr = String(row.nom_fr || "").trim(), nomAr = String(row.nom_ar || "").trim();
+        const classe = String(row.classe || "").trim(), classeAr = String(row.classe_ar || "").trim();
+        if (!nomFr && !nomAr) return;
+        const key = nomFr + "|" + nomAr + "|" + classe;
+        if (!elevesData[key]) elevesData[key] = { nomFr: nomFr || "—", nomAr: nomAr || "—", classe: classe || "—", classeAr: classeAr || "—", matieres: [] };
+        if ("matiere_fr" in row || "matiere_ar" in row || "note_fr" in row) {
+          elevesData[key].matieres.push({
+            matFR: String(row.matiere_fr || "").trim(), matAR: String(row.matiere_ar || "").trim(),
+            uFr: String(row.unite_fr || "").trim(), uAr: String(row.unite_ar || "").trim(),
+            nf: nx(row.note_fr), na: nx(row.note_ar)
+          });
+        } else if (window.gfnLignes) {
+          elevesData[key].matieres = window.gfnLignes(classe, row, meta);
+        }
+      });
+    });
+    afficherListeEleves();
+    document.getElementById("compteurEleves").textContent = Object.keys(elevesData).length + " élève(s)";
+  }
+}
+
+/* ===== Qualité PDF : rendu net, une seule logique pour les 3 exports ===== */
+async function bulletinToCanvas(el, extra) {
+  if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+  return html2canvas(el, Object.assign({ scale: 3, useCORS: true, backgroundColor: '#ffffff', logging: false, imageTimeout: 15000 }, extra || {}));
+}
+function ajouterCanvasAuPDF(doc, canvas) {
+  const pageW = 210, pageH = 297, mx = 8, my = 8;
+  const maxW = pageW - 2 * mx, maxH = pageH - 2 * my;
+  const ratio = canvas.width / canvas.height;
+  let w = maxW, h = w / ratio;
+  if (h > maxH) { h = maxH; w = h * ratio; }          // tient toujours sur UNE page A4, sans coupure
+  doc.addImage(canvas.toDataURL('image/png'), 'PNG', (pageW - w) / 2, my, w, h, undefined, 'FAST');
+}
+
+function afficherListeEleves() {
+  const conteneur = document.getElementById("elevesList");
+  const keys = Object.keys(elevesData);
+  if (keys.length === 0) {
+    conteneur.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">Aucun élève importé</p>';
+    return;
+  }
+  let html = `<table class="eleves-table"><thead><tr>
+    <th>#</th><th>Nom (FR)</th><th>الاسم (AR)</th><th>Classe</th><th>القسم</th><th>Nb. matières</th><th>Action</th>
+  </tr></thead><tbody>`;
+  keys.forEach((key, idx) => {
+    const e = elevesData[key];
+    html += `<tr>
+      <td>${idx + 1}</td>
+      <td>${e.nomFr}</td>
+      <td style="font-family:'Amiri','Cairo','Traditional Arabic',Arial;font-size:16px;">${e.nomAr}</td>
+      <td>${e.classe}</td>
+      <td style="font-family:'Amiri','Cairo','Traditional Arabic',Arial;font-size:16px;">${e.classeAr}</td>
+      <td>${e.matieres.length}</td>
+      <td><button class="btn-blue btn-small" onclick="voirBulletin('${key.replace(/'/g, "\\'")}')">👁️ Voir</button> <button class="btn-green btn-small" onclick="telechargerPDFEleve('${key.replace(/'/g, "\\'")}')">📄 PDF</button></td>
+    </tr>`;
+  });
+  html += "</tbody></table>";
+  conteneur.innerHTML = html;
+}
+
+function voirBulletin(key) {
+  if (logoManquant()) return;
+  const e = elevesData[key];
+  if (!e) return;
+  const sem = document.getElementById("semestre").value || "—";
+  const annee = document.getElementById("annee").value || "—";
+  const etab = document.getElementById("etab").value || "—";
+  const etabAr = document.getElementById("etabAr").value || "—";
+  document.getElementById("bulletin").innerHTML = construireBulletinHTML(e, sem, annee, etab, etabAr);
+  document.getElementById("bulletin").style.display = "block";
+  document.getElementById("bulletin").scrollIntoView({ behavior: "smooth" });
+}
+
+function construireBulletinHTML(eleve, sem, annee, etab, etabAr) {
+  let htmlLignes = "";
+  const infos = eleve.matieres;
+
+  const cellulesFr = {};
+  let i = 0;
+  while (i < infos.length) {
+    const u = infos[i].uFr;
+    if (u) {
+      let count = 1, j = i + 1;
+      while (j < infos.length && !infos[j].uFr) { count++; j++; }
+      cellulesFr[i] = count; i = j;
+    } else { i++; }
+  }
+
+  const cellulesAr = {};
+  i = 0;
+  while (i < infos.length) {
+    const u = infos[i].uAr;
+    if (u) {
+      let count = 1, j = i + 1;
+      while (j < infos.length && !infos[j].uAr) { count++; j++; }
+      cellulesAr[i] = count; i = j;
+    } else { i++; }
+  }
+
+  infos.forEach((info, idx) => {
+    const nf = parseFloat(info.nf), na = parseFloat(info.na);
+    const nfAff = !isNaN(nf) ? nf.toFixed(2) : "—";
+    const naAff = !isNaN(na) ? na.toFixed(2) : "—";
+
+    let cellFr = "";
+    if (info.uFr) cellFr = `<td class="cell-unite" rowspan="${cellulesFr[idx]}">${info.uFr}</td>`;
+
+    let cellAr = "";
+    if (info.uAr) cellAr = `<td class="cell-unite-ar" rowspan="${cellulesAr[idx]}">${info.uAr}</td>`;
+
+    htmlLignes += `<tr>
+      ${cellFr}
+      <td class="nom-fr">${info.matFR || "—"}</td>
+      <td>${nfAff}</td>
+      <td>${naAff}</td>
+      <td class="nom-ar">${info.matAR || "—"}</td>
+      ${cellAr}
+    </tr>`;
+  });
+
+  // 🔑 MOYENNE FR (m7souba, ma katbanch)
+  const moyGenFR = (() => {
+    let s = 0, c = 0;
+    infos.forEach(i => { const n = parseFloat(i.nf); if (!isNaN(n)) { s += n; c++; } });
+    return c > 0 ? s / c : 0;
+  })();
+
+  // 🔑 MOYENNE AR (m7souba, ma katbanch)
+  const moyGenAR = (() => {
+    let s = 0, c = 0;
+    infos.forEach(i => { const n = parseFloat(i.na); if (!isNaN(n)) { s += n; c++; } });
+    return c > 0 ? s / c : 0;
+  })();
+
+  // 🔑 APPRÉCIATION FR
+  let mentionFr = "";
+  if (moyGenFR >= 9)       mentionFr = "Excellent";
+  else if (moyGenFR >= 8)  mentionFr = "Très bien";
+  else if (moyGenFR >= 7)  mentionFr = "Bien";
+  else if (moyGenFR >= 5)  mentionFr = "Passable";
+  else                     mentionFr = "Insuffisant";
+
+  // 🔑 APPRÉCIATION AR
+  let mentionAr = "";
+  if (moyGenAR >= 9)       mentionAr = "ممتاز";
+  else if (moyGenAR >= 8)  mentionAr = "جيد جداً";
+  else if (moyGenAR >= 7)  mentionAr = "جيد";
+  else if (moyGenAR >= 5)  mentionAr = "مقبول";
+  else                     mentionAr = "ضعيف";
+
+  const logoHTML = logoDataURL
+    ? `<img src="${logoDataURL}" alt="Logo école">`
+    : `<div class="logo-placeholder">Logo<br>شعار</div>`;
+
+  return `
+    <div class="bulletin-header">
+      <div class="fr"><strong>${etab}</strong><br>Année scolaire : ${annee}</div>
+      <div class="logo-zone">${logoHTML}</div>
+      <div class="ar"><strong>${etabAr}</strong><br>السنة الدراسية: ${annee}</div>
+    </div>
+    <div class="bulletin-title">
+      BULLETIN SCOLAIRE — <span style="font-family:'Amiri','Cairo','Traditional Arabic', Arial; font-size:22px;">بيان النقط</span>
+      <div style="font-size:12px; margin-top:2px;">${sem}</div>
+    </div>
+    <div class="info-eleve">
+      <div><strong>Nom :</strong> ${eleve.nomFr}</div>
+      <div class="info-ar"><strong>الاسم:</strong> ${eleve.nomAr}</div>
+      <div><strong>Classe :</strong> ${eleve.classe}</div>
+      <div class="info-ar"><strong>القسم:</strong> ${eleve.classeAr}</div>
+    </div>
+    <table class="bulletin-table">
+      <colgroup>
+        <col class="col-unite-fr">
+        <col class="col-matiere">
+        <col class="col-note-fr">
+        <col class="col-note-ar">
+        <col class="col-matiere-ar">
+        <col class="col-unite-ar">
+      </colgroup>
+      <thead><tr>
+        <th>Unité</th><th>Matière</th><th>Note /10</th><th>النقطة \\ 10</th>
+        <th class="th-ar">المادة</th><th class="th-ar">الوحدة</th>
+      </tr></thead>
+      <tbody>${htmlLignes}</tbody>
+    </table>
+    
+    <!-- 🔑 APPRÉCIATIONS GHIR (bla moyennes) -->
+    <div class="appreciation-box">
+      <div class="label">Appréciations Générales</div>
+      
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-top:10px;">
+        <!-- FR -->
+        <div style="text-align:center; border:2px solid #000; padding:12px; border-radius:6px; background:#f9fafc;">
+          <div style="font-size:22px; font-weight:bold; color:#1a3a6b; margin-top:5px;">${mentionFr}</div>
+        </div>
+        
+        <!-- AR -->
+        <div style="text-align:center; border:2px solid #000; padding:12px; border-radius:6px; background:#f9fafc;" dir="rtl">
+          <div style="font-size:22px; font-weight:bold; color:#14803c; margin-top:5px; font-family:'Amiri','Cairo','Traditional Arabic',Arial;">${mentionAr}</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="signature">
+      <div class="sign-dir">Signature de la direction<br>توقيع الإدارة</div>
+    </div>
+  `;
+}
+
+function genererTousBulletins() {
+  if (logoManquant()) return;
+  const keys = Object.keys(elevesData);
+  if (keys.length === 0) { alert("⚠️ Khass t'importi fichier 9bel"); return; }
+  const sem = document.getElementById("semestre").value || "—";
+  const annee = document.getElementById("annee").value || "—";
+  const etab = document.getElementById("etab").value || "—";
+  const etabAr = document.getElementById("etabAr").value || "—";
+  let html = "";
+  keys.forEach(key => {
+    html += `<div style="page-break-after: always; margin-bottom: 30px;">`;
+    html += construireBulletinHTML(elevesData[key], sem, annee, etab, etabAr);
+    html += `</div>`;
+  });
+  document.getElementById("bulletin").innerHTML = html;
+  document.getElementById("bulletin").style.display = "block";
+  document.getElementById("bulletin").scrollIntoView({ behavior: "smooth" });
+}
+
+async function telechargerTousPDF() {
+  if (logoManquant()) return;
+  const keys = Object.keys(elevesData);
+  if (keys.length === 0) { alert("⚠️ Khass t'importi fichier 9bel"); return; }
+  const sem = document.getElementById("semestre").value || "—";
+  const annee = document.getElementById("annee").value || "—";
+  const etab = document.getElementById("etab").value || "—";
+  const etabAr = document.getElementById("etabAr").value || "—";
+
+  document.getElementById("loading").style.display = "flex";
+  const { jsPDF } = window.jspdf;
+  const zip = (typeof JSZip !== "undefined") ? new JSZip() : null;   // sinon : téléchargements séparés
+  const noms = new Set();
+
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    const e = elevesData[key];
+    document.getElementById("progressText").textContent = `${i + 1} / ${keys.length} — ${e.nomFr}`;
+
+    const tempDiv = document.createElement("div");
+    tempDiv.style.position = "fixed"; tempDiv.style.left = "-9999px"; tempDiv.style.top = "0";
+    tempDiv.style.width = "910px"; tempDiv.style.background = "#fff"; tempDiv.style.padding = "20px";
+    tempDiv.innerHTML = construireBulletinHTML(e, sem, annee, etab, etabAr);
+    document.body.appendChild(tempDiv);
+
+    try {
+      const canvas = await bulletinToCanvas(tempDiv);
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+      ajouterCanvasAuPDF(doc, canvas);
+      const nomSafe = e.nomFr.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, "_");
+      if (zip) {
+        const cls = String(e.classe || "classe").replace(/[^a-zA-Z0-9\u0600-\u06FF]+/g, "_");
+        let chemin = `${cls}/Bulletin_${nomSafe}.pdf`;
+        if (noms.has(chemin)) chemin = `${cls}/Bulletin_${nomSafe}_${i + 1}.pdf`;
+        noms.add(chemin);
+        zip.file(chemin, doc.output("blob"));
+      } else doc.save(`Bulletin_${nomSafe}.pdf`);
+    } catch (err) { console.error("Erreur pour", e.nomFr, err); }
+    tempDiv.remove();
+    if (!zip) await new Promise(r => setTimeout(r, 800));
+  }
+  if (zip) {
+    document.getElementById("progressText").textContent = "Compression du ZIP…";
+    try {
+      const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
+      sauverBlob(blob, ("Bulletins_" + annee + "_" + sem).replace(/[\\/:*?"<>|\s]+/g, "_") + ".zip");
+    } catch (err) { console.error(err); alert("❌ Erreur ZIP : " + err.message); }
+  }
+  document.getElementById("loading").style.display = "none";
+  alert(`✅ ${keys.length} PDF générés${zip ? " dans un fichier ZIP (un dossier par classe)" : ""} !`);
+}
+
+async function telechargerPDFUnique() {
+  if (logoManquant()) return;
+  const keys = Object.keys(elevesData);
+  if (keys.length === 0) { alert("⚠️ Khass t'importi fichier 9bel"); return; }
+  const sem = document.getElementById("semestre").value || "—";
+  const annee = document.getElementById("annee").value || "—";
+  const etab = document.getElementById("etab").value || "—";
+  const etabAr = document.getElementById("etabAr").value || "—";
+
+  document.getElementById("loading").style.display = "flex";
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+
+  const pageW = 210, pageH = 297, marginX = 8, marginY = 8;
+  const maxW = pageW - 2 * marginX, maxH = pageH - 2 * marginY;
+
+  let premierePage = true;
+
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    const e = elevesData[key];
+    document.getElementById("progressText").textContent = `${i + 1} / ${keys.length} — ${e.nomFr}`;
+
+    const tempDiv = document.createElement("div");
+    tempDiv.style.position = "fixed"; tempDiv.style.left = "-9999px"; tempDiv.style.top = "0";
+    tempDiv.style.width = "910px"; tempDiv.style.background = "#fff"; tempDiv.style.padding = "20px";
+    tempDiv.innerHTML = construireBulletinHTML(e, sem, annee, etab, etabAr);
+    document.body.appendChild(tempDiv);
+
+    try {
+      const canvas = await bulletinToCanvas(tempDiv);
+      if (!premierePage) doc.addPage();
+      premierePage = false;
+      ajouterCanvasAuPDF(doc, canvas);
+    } catch (err) { console.error("Erreur pour", e.nomFr, err); }
+    tempDiv.remove();
+    await new Promise(r => setTimeout(r, 200));
+  }
+
+  const semSafe = sem.replace(/\s+/g, "_").replace(/[\\/:*?"<>|]+/g, "-");
+  doc.save(`Bulletins_Tous_Eleves_${semSafe}.pdf`);
+
+  document.getElementById("loading").style.display = "none";
+  alert(`✅ PDF unique généré avec ${keys.length} élève(s) !`);
+}
+
+function viderEleves() {
+  if (!confirm("Vider la liste des élèves ?")) return;
+  elevesData = {};
+  document.getElementById("elevesList").innerHTML = '<p style="text-align:center;color:#999;padding:20px;">Aucun élève importé</p>';
+  document.getElementById("compteurEleves").textContent = "0 élève(s)";
+  document.getElementById("fileInput").value = "";
+  document.getElementById("bulletin").style.display = "none";
+}
+
+function telechargerModele() {
+  const modele = [
+    { nom_fr: "Ahmed Benali", nom_ar: "أحمد بنعلي", classe: "4ème A", classe_ar: "الرابع أ", matiere_fr: "Expression orale", matiere_ar: "القرآن الكريم", unite_fr: "Langue française", unite_ar: "اللغة العربية", note_fr: 8, note_ar: 10 },
+    { nom_fr: "Ahmed Benali", nom_ar: "أحمد بنعلي", classe: "4ème A", classe_ar: "الرابع أ", matiere_fr: "Poésie", matiere_ar: "التربية الإسلامية", unite_fr: "", unite_ar: "", note_fr: 8, note_ar: 10 },
+    { nom_fr: "Ahmed Benali", nom_ar: "أحمد بنعلي", classe: "4ème A", classe_ar: "الرابع أ", matiere_fr: "Lecture", matiere_ar: "التواصل الشفهي", unite_fr: "", unite_ar: "", note_fr: 8, note_ar: 9 },
+    { nom_fr: "Sara Alami", nom_ar: "سارة علمي", classe: "4ème A", classe_ar: "الرابع أ", matiere_fr: "Expression orale", matiere_ar: "القرآن الكريم", unite_fr: "Langue française", unite_ar: "اللغة العربية", note_fr: 9, note_ar: 9.5 },
+    { nom_fr: "Sara Alami", nom_ar: "سارة علمي", classe: "4ème A", classe_ar: "الرابع أ", matiere_fr: "Poésie", matiere_ar: "التربية الإسلامية", unite_fr: "", unite_ar: "", note_fr: 9.5, note_ar: 10 }
+  ];
+  const ws = XLSX.utils.json_to_sheet(modele);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Bulletins");
+  XLSX.writeFile(wb, "Modele_Bulletins.xlsx");
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  try { const l = localStorage.getItem("gb_logo"); if (l) setLogo(l); } catch (e) {}
+  majEtatLogo();
+  ajouterGroupeLangue(groupeLangueFr);
+  ajouterGroupeAutres(groupeAutres);
+});
+</script>
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+let S={},st=[],tm;
+const E=s=>String(s==null?"":s).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+const cn=l=>[...l.toUpperCase()].reduce((n,c)=>n*26+c.charCodeAt(0)-64,0);
+const cl=n=>{let s="";while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=Math.floor((n-1)/26)}return s};
+const pid=v=>{v=(v||"").trim();const m=v.match(/\/d\/([\w-]+)/);return m?m[1]:v};
+const mk=(side,start,n)=>({side,start,n,label:"",link:"",cn:"A",c1:"B",r1:3,r2:""});
+const dG=()=>[mk("fr",1,9),mk("ar",1,10)];
+function dL(){const L=[];
+  groupeLangueFr.matieres.forEach((m,i)=>L.push({uFr:i?"":groupeLangueFr.uniteFr,mFr:m.fr,mAr:m.ar,uAr:i?"":groupeLangueFr.uniteAr}));
+  groupeAutres.lignes.forEach(l=>L.push({uFr:l.uniteFr||"",mFr:l.matiereFr||"",mAr:l.matiereAr||"",uAr:l.uniteAr||""}));
+  return L}
+const fx=v=>(v===undefined||v===null||v==="")?"":String(v).replace(",",".");
+window.gfnLignes=(c,row,meta)=>{
+  if(meta&&Object.keys(meta).length)return Object.keys(meta).map(Number).sort((a,b)=>a-b).map(k=>{const m=meta[k];return{matFR:(m.fr&&m.fr.n)||"",matAR:(m.ar&&m.ar.n)||"",uFr:(m.fr&&m.fr.u)||"",uAr:(m.ar&&m.ar.u)||"",nf:fx(row["fr_"+k]),na:fx(row["ar_"+k])}});
+  const I=window.gfnImp,L=(I&&(I[c]||I["*"]))||(S[c]?S[c].lines.map((l,i)=>({...l,k:i+1})):dL().map((l,i)=>({...l,k:i+1})));
+  return L.map(l=>({matFR:l.mFr,matAR:l.mAr,uFr:l.uFr,uAr:l.uAr,nf:fx(row["fr_"+l.k]),na:fx(row["ar_"+l.k])}))};
+const save=()=>{try{localStorage.setItem("gfn2",JSON.stringify({t:$("gf-stu").value,S}))}catch(e){}};
+(()=>{try{const d=JSON.parse(localStorage.getItem("gfn2")||"null");if(d){$("gf-stu").value=d.t;S=d.S||{}}}catch(e){}})();
+function parse(){st=$("gf-stu").value.split("\n").map(l=>l.split(/\t|;/).map(x=>x.trim())).filter(r=>(r[0]||r[1])&&r[0].toLowerCase()!=="nom_fr").map(r=>({fr:r[0]||"",ar:r[1]||"",cl:r[2]||"—",clAr:r[3]||""}))}
+const classes=()=>[...new Set(st.map(s=>s.cl))];
+const IS='style="width:100%;box-sizing:border-box;padding:4px;border:1px solid #ccc;border-radius:4px"';
+function render(){
+  parse();const C=classes();$("gf-cnt").textContent=st.length+" élève(s), "+C.length+" classe(s)";
+  C.forEach(c=>{if(!S[c])S[c]={lines:dL(),groups:dG()}});
+  $("gf-cls").innerHTML=C.map(c=>{const e=E(c),o=S[c],n=st.filter(s=>s.cl===c).length;
+    const lt=o.lines.map((l,i)=>`<tr><td>${i+1}</td>`+[["uFr",""],["mFr",""],["mAr","rtl"],["uAr","rtl"]].map(([k,d])=>`<td><input data-t="l" data-c="${e}" data-i="${i}" data-k="${k}" value="${E(l[k])}" ${d?'dir="rtl"':""} ${IS}></td>`).join("")+`<td><button class="btn-red btn-small" data-a="dl" data-c="${e}" data-i="${i}">✕</button></td></tr>`).join("");
+    const gt=o.groups.map((g,i)=>{const ln=o.lines[g.start-1]||{},nm=g.side==="fr"?ln.mFr:ln.mAr;const h=g.n>1?`${g.side}_${g.start} … ${g.side}_${+g.start+ +g.n-1}`:`${g.side}_${g.start}`;
+      return `<div class="gf-g"><label>Côté<select data-t="g" data-c="${e}" data-i="${i}" data-k="side" ${IS}><option value="fr" ${g.side==="fr"?"selected":""}>fr (note FR)</option><option value="ar" ${g.side==="ar"?"selected":""}>ar (note AR)</option></select></label>`+
+      [["label","Nom du bloc (libre, ex. Maths)","text","gf-w"],["start","Ligne bulletin début","number"],["n","Nb colonnes","number"],["link","Lien ou ID du fichier du prof","text","gf-w"],["cn","Col. noms","text"],["c1","1ʳᵉ col. notes","text"],["r1","Ligne début","text"],["r2","Ligne fin (opt.)","text"]].map(([k,l,t,w])=>`<label class="${w||""}">${l}<input data-t="g" data-c="${e}" data-i="${i}" data-k="${k}" type="${t}" value="${E(g[k])}" ${IS}></label>`).join("")+
+      `<div class="gf-m">→ ${h}<br>${E(nm||"")}<br><button class="btn-red btn-small" data-a="dg" data-c="${e}" data-i="${i}">✕</button></div></div>`}).join("");
+    return `<div class="gf-card"><div class="gf-h"><b>${e}</b><span style="color:#666;font-size:12px">${n} élève(s)</span><span style="flex:1"></span><button class="btn-blue btn-small" data-a="all" data-c="${e}">Copier la structure vers toutes les classes</button></div>
+    <div style="font-size:13px;margin:6px 0"><b>Lignes du bulletin</b> (fr_k / ar_k = note de la ligne k)</div>
+    <div style="overflow-x:auto"><table class="gf-t"><thead><tr><th>#</th><th>Unité FR</th><th>Matière FR</th><th>المادة</th><th>الوحدة</th><th></th></tr></thead><tbody>${lt}</tbody></table></div>
+    <div class="gf-h" style="margin-top:6px"><button class="btn-blue btn-small" data-a="al" data-c="${e}">+ Ligne</button><button class="btn-orange btn-small" data-a="rl" data-c="${e}">Rétablir le modèle par défaut</button></div>
+    <div style="font-size:13px;margin:10px 0 4px"><b>Sources des notes</b> (un fichier de prof = un bloc de colonnes)</div>${gt}
+    <button class="btn-green btn-small" data-a="ag" data-c="${e}">+ Source (fichier prof)</button></div>`}).join("")||'<p style="color:#999">Ajoutez d’abord les élèves.</p>';
+  save()}
+$("gf-stu").addEventListener("input",()=>{clearTimeout(tm);tm=setTimeout(render,400)});
+$("gf-cls").addEventListener("input",e=>{const d=e.target.dataset;if(!d.k)return;const o=S[d.c],t=d.t==="l"?o.lines[d.i]:o.groups[d.i];
+  t[d.k]=(d.k==="n"||d.k==="start")?Math.max(1,+e.target.value||1):e.target.value;save()});
+$("gf-cls").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const d=b.dataset,o=S[d.c];
+  if(d.a==="dl")o.lines.splice(d.i,1);if(d.a==="al")o.lines.push({uFr:"",mFr:"",mAr:"",uAr:""});if(d.a==="rl")o.lines=dL();
+  if(d.a==="dg")o.groups.splice(d.i,1);if(d.a==="ag")o.groups.push(mk("fr",1,1));
+  if(d.a==="all")classes().forEach(c=>{if(c!==d.c){const x=JSON.parse(JSON.stringify(o));x.groups.forEach(g=>g.link="");S[c]=x}});
+  render()});
+function cp(ta,b){ta.select();let ok=false;try{ok=document.execCommand("copy")}catch(e){}b.textContent=ok?"✅ Copié":"Ctrl+C pour copier";setTimeout(()=>b.textContent="📋 Copier",2000)}
+function block(title,tsv,file){const d=document.createElement("div");d.className="gf-card";
+  d.innerHTML=`<div class="gf-h"><b>${E(title)}</b><span style="flex:1"></span><button class="btn-blue btn-small" data-x="c">📋 Copier</button><button class="btn-orange btn-small" data-x="d">⬇️ .tsv</button></div><textarea readonly wrap="off" style="width:100%;box-sizing:border-box;min-height:110px;font-family:monospace;font-size:12px"></textarea>`;
+  const ta=d.querySelector("textarea");ta.value=tsv;
+  d.querySelector('[data-x="c"]').onclick=e=>cp(ta,e.target);
+  d.querySelector('[data-x="d"]').onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([tsv],{type:"text/tab-separated-values"}));a.download=file;a.click()};
+  $("gf-out").appendChild(d)}
+$("gf-go").onclick=()=>{
+  render();const mode=document.querySelector("input[name=gfmode]:checked").value,sp=$("gf-sep").value,warn=[];$("gf-out").innerHTML="";
+  classes().forEach(c=>{
+    const s=st.filter(x=>x.cl===c),g=S[c].groups,head=["nom_fr","nom_ar","classe","classe_ar"];
+    g.forEach(x=>{for(let j=0;j<x.n;j++)head.push(x.side+"_"+(+x.start+j))});
+    const m1=["matière","","",""],m2=["unité","","",""];
+    g.forEach(x=>{for(let j=0;j<x.n;j++){const L=S[c].lines[+x.start+j-1]||{};m1.push((x.side==="fr"?L.mFr:L.mAr)||"");m2.push((x.side==="fr"?L.uFr:L.uAr)||"")}});
+    const rows=s.map(x=>[x.fr,x.ar,x.cl,x.clAr]);let off=4;
+    g.forEach(x=>{const id=pid(x.link),nn=+x.n;
+      if(!id){warn.push(c+" : "+x.side+"_"+x.start+" → lien manquant");off+=nn;return}
+      const r1=+x.r1||3,last=cl(cn(x.c1)+nn-1);
+      if(mode==="pos"){const r2=+x.r2||r1+s.length-1;rows[0][off]=`=IMPORTRANGE("${id}"${sp}"${x.c1}${r1}:${last}${r2}")`}
+      else{const r2=+x.r2||r1+500,rg=`IMPORTRANGE("${id}"${sp}"${x.cn}${r1}:${last}${r2}")`;
+        rows.forEach((row,i)=>{for(let j=0;j<nn;j++){const k=cn(x.c1)-cn(x.cn)+j+1;row[off+j]=`=IFERROR(VLOOKUP($A${i+4}${sp}${rg}${sp}${k}${sp}0)${sp}"")`}})}
+      off+=nn});
+    rows.forEach(r=>r.length=head.length);
+    block("Onglet « "+c+" » (collez en A1)",[head,m1,m2,...rows].map(r=>r.join("\t")).join("\n"),"notes_"+c.replace(/\W+/g,"_")+".tsv")});
+  const h=document.createElement("div");h.style.cssText="font-size:13px;color:#555;margin:8px 0";
+  h.innerHTML=(warn.length?'<div style="color:#b83232">⚠️ '+warn.map(E).join("<br>⚠️ ")+"</div>":"")+"Dans Google Sheets : un onglet par classe → clic sur <b>A1</b> → Ctrl+V → <b>Autoriser l’accès</b> sur les cellules #REF!. Ensuite <b>Fichier → Télécharger → .xlsx</b> (tous les onglets) et importez-le dans « Génération en masse ».";
+  $("gf-out").prepend(h)};
+const cfg=()=>JSON.stringify({v:1,students:$("gf-stu").value,S},null,1);
+function apply(t){const d=JSON.parse(t);if(!d||typeof d.students!=="string"||!d.S)throw new Error("Fichier invalide");$("gf-stu").value=d.students;S=d.S;render()}
+const stt=(m,ok)=>{$("gf-st").textContent=m;$("gf-st").style.color=ok?"#1b7a3a":"#b83232"};
+$("gf-jx").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([cfg()],{type:"application/json"}));a.download="config_bulletins.json";a.click()};
+$("gf-ji").onclick=()=>$("gf-jin").click();
+$("gf-jin").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{apply(r.result);stt("✅ Configuration importée",1)}catch(x){stt("❌ "+x.message)}};r.readAsText(f);e.target.value=""};
+const GK="gfn_gh";
+(()=>{try{const d=JSON.parse(localStorage.getItem(GK)||"{}");$("gf-gho").value=d.o||"";$("gf-ghr").value=d.r||"";$("gf-ghp").value=d.p||"";$("gf-ghb").value=d.b||"";$("gf-ght").value=d.t||"";$("gf-ghm").checked=!!d.t}catch(e){}})();
+const gh=()=>{const c={o:$("gf-gho").value.trim(),r:$("gf-ghr").value.trim(),p:$("gf-ghp").value.trim()||"config_bulletins.json",b:$("gf-ghb").value.trim()||"main",t:$("gf-ght").value.trim()};
+  if(!c.o||!c.r||!c.t)throw new Error("Renseignez utilisateur, dépôt et token");
+  try{localStorage.setItem(GK,JSON.stringify({o:c.o,r:c.r,p:c.p,b:c.b,t:$("gf-ghm").checked?c.t:""}))}catch(e){}return c};
+const gU=c=>`https://api.github.com/repos/${encodeURIComponent(c.o)}/${encodeURIComponent(c.r)}/contents/${c.p.split("/").map(encodeURIComponent).join("/")}`;
+const gH=c=>({Authorization:"Bearer "+c.t,Accept:"application/vnd.github+json"});
+const b64=t=>btoa(unescape(encodeURIComponent(t))),ub64=t=>decodeURIComponent(escape(atob(t.replace(/\n/g,""))));
+$("gf-gs").onclick=async()=>{try{const c=gh();stt("…envoi",1);
+  const g=await fetch(gU(c)+"?ref="+encodeURIComponent(c.b),{headers:gH(c)});let sha;
+  if(g.ok)sha=(await g.json()).sha;else if(g.status!==404)throw new Error("GitHub "+g.status+" (vérifiez le token / le dépôt)");
+  const r=await fetch(gU(c),{method:"PUT",headers:{...gH(c),"Content-Type":"application/json"},body:JSON.stringify({message:"Sauvegarde config bulletins "+new Date().toISOString().slice(0,16),content:b64(cfg()),branch:c.b,...(sha?{sha}:{})})});
+  if(!r.ok)throw new Error("GitHub "+r.status+" : "+((await r.json()).message||""));stt("✅ Sauvegardé sur GitHub",1)}catch(x){stt("❌ "+x.message)}};
+$("gf-gl").onclick=async()=>{try{const c=gh();stt("…chargement",1);
+  const g=await fetch(gU(c)+"?ref="+encodeURIComponent(c.b),{headers:gH(c)});
+  if(!g.ok)throw new Error("GitHub "+g.status+(g.status===404?" : fichier introuvable":""));
+  apply(ub64((await g.json()).content));stt("✅ Chargé depuis GitHub",1)}catch(x){stt("❌ "+x.message)}};
+render();
+})();
+</script>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const esc = t => String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+
+  /* Sauvegarde du PDF : feuille de partage sur iPhone/iPad, téléchargement ailleurs */
+  window.sauverPDF = function (doc, name) {
+    if (ios && navigator.canShare) {
+      try {
+        const f = new File([doc.output("blob")], name, { type: "application/pdf" });
+        if (navigator.canShare({ files: [f] })) {
+          navigator.share({ files: [f], title: name }).catch(err => { if (err && err.name !== "AbortError") doc.save(name); });
+          return;
+        }
+      } catch (e) {}
+    }
+    doc.save(name);
+  };
+
+  /* Choisir un élève → son bulletin */
+  function fill() {
+    const q = ($("pickSearch").value || "").trim().toLowerCase(), sel = $("pickSel"), cur = sel.value;
+    const all = Object.keys(elevesData);
+    const keys = all.filter(k => { const e = elevesData[k]; return !q || (e.nomFr + " " + e.nomAr + " " + e.classe).toLowerCase().includes(q); });
+    const g = {}; keys.forEach(k => (g[elevesData[k].classe] = g[elevesData[k].classe] || []).push(k));
+    sel.innerHTML = keys.length
+      ? Object.keys(g).map(c => `<optgroup label="${esc(c)}">` + g[c].map(k => `<option value="${esc(k)}">${esc(elevesData[k].nomFr)} · ${esc(elevesData[k].nomAr)}</option>`).join("") + "</optgroup>").join("")
+      : '<option value="">— aucun élève —</option>';
+    if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur;
+    $("pickCount").textContent = all.length ? keys.length + " / " + all.length : "";
+  }
+  const _afl = window.afficherListeEleves;
+  window.afficherListeEleves = function () { _afl.apply(this, arguments); fill(); };
+  $("pickSearch").addEventListener("input", fill);
+  $("pickView").onclick = () => { const k = $("pickSel").value; if (k) voirBulletin(k); else alert("⚠️ Choisissez un élève"); };
+  $("pickPdf").onclick = () => telechargerPDFEleve($("pickSel").value);
+
+  window.telechargerPDFEleve = async function (key) {
+    if (logoManquant()) return;
+    const e = elevesData[key];
+    if (!e) { alert("⚠️ Choisissez un élève d’abord"); return; }
+    const v = id => $(id).value || "—";
+    $("loading").style.display = "flex"; $("progressText").textContent = e.nomFr;
+    const t = document.createElement("div");
+    t.style.cssText = "position:fixed;left:-9999px;top:0;width:910px;background:#fff;padding:20px";
+    t.innerHTML = construireBulletinHTML(e, v("semestre"), v("annee"), v("etab"), v("etabAr"));
+    document.body.appendChild(t);
+    try {
+      const canvas = await bulletinToCanvas(t);
+      const doc = new window.jspdf.jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+      ajouterCanvasAuPDF(doc, canvas);
+      sauverPDF(doc, "Bulletin_" + (e.nomFr + "_" + e.classe).replace(/[^a-zA-Z0-9\u0600-\u06FF]+/g, "_") + ".pdf");
+    } catch (err) { console.error(err); alert("❌ Erreur PDF : " + err.message); }
+    t.remove(); $("loading").style.display = "none";
+  };
+
+  /* PWA : service worker + bouton d'installation */
+  if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  }
+  let dp = null; const bi = $("btnInstall");
+  window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); dp = e; if (!standalone) bi.hidden = false; });
+  window.addEventListener("appinstalled", () => { bi.hidden = true; });
+  if (ios && !standalone) bi.hidden = false;
+  bi.onclick = async () => {
+    if (dp) { dp.prompt(); await dp.userChoice; dp = null; bi.hidden = true; }
+    else alert("iPhone / iPad : ouvrez cette page dans Safari, touchez le bouton Partager, puis « Sur l’écran d’accueil ».");
+  };
+})();
+</script>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const esc = t => String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const BAREME = 10;                                   // note maximale du bulletin (/10)
+
+  /* ---- Année scolaire automatique (change toute seule chaque rentrée, en août) ---- */
+  const anneeAuto = () => { const d = new Date(), y = d.getFullYear(), a = d.getMonth() >= 7 ? y : y - 1; return a + "/" + (a + 1); };
+  const inp = $("annee"); let manuel = null;
+  try { manuel = localStorage.getItem("gb_annee"); } catch (e) {}
+  inp.value = manuel || anneeAuto(); inp.placeholder = anneeAuto();
+  inp.addEventListener("input", () => { try { if (inp.value.trim() && inp.value.trim() !== anneeAuto()) localStorage.setItem("gb_annee", inp.value.trim()); else localStorage.removeItem("gb_annee"); } catch (e) {} });
+
+  /* ---- Sauvegarde d'un fichier (ZIP…) : partage sur iPhone, téléchargement ailleurs ---- */
+  window.sauverBlob = function (blob, name) {
+    const dl = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000); };
+    if (ios && navigator.canShare) {
+      try {
+        const f = new File([blob], name, { type: blob.type || "application/zip" });
+        if (navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: name }).catch(err => { if (err && err.name !== "AbortError") dl(); }); return; }
+      } catch (e) {}
+    }
+    dl();
+  };
+
+  /* ---- Contrôle des notes ---- */
+  function controle(keys) {
+    const res = [], vus = {};
+    keys.forEach(k => {
+      const e = elevesData[k], errs = [], warns = [];
+      const id = (e.nomFr + "|" + e.classe).toLowerCase();
+      if (vus[id]) errs.push("doublon (même nom et même classe)"); vus[id] = 1;
+      if (!e.classe || e.classe === "—") warns.push("classe manquante");
+      let any = false; const manq = [], hors = [], nonnum = [];
+      (e.matieres || []).forEach(m => [[m.nf, m.matFR], [m.na, m.matAR]].forEach(([v, lab]) => {
+        const t = String(v == null ? "" : v).trim();
+        if (t === "") { if (lab) manq.push(lab); return; }
+        any = true;
+        if (!/^-?\d+([.,]\d+)?$/.test(t)) { nonnum.push((lab || "?") + " = « " + t + " »"); return; }
+        const n = parseFloat(t.replace(",", "."));
+        if (n < 0 || n > BAREME) hors.push((lab || "?") + " = " + t);
+      }));
+      if (!any) errs.push("aucune note saisie");
+      if (hors.length) errs.push("note hors barème (0 à " + BAREME + ") : " + hors.join(", "));
+      if (nonnum.length) warns.push("valeur non numérique : " + nonnum.join(", "));
+      if (manq.length && any) warns.push(manq.length + " note(s) manquante(s) : " + manq.slice(0, 6).join(", ") + (manq.length > 6 ? "…" : ""));
+      res.push({ e, errs, warns });
+    });
+    return res;
+  }
+  function rapport(keys, infoSeule) {
+    return new Promise(resolve => {
+      const r = controle(keys), E = r.filter(x => x.errs.length), W = r.filter(x => x.warns.length);
+      if (!E.length && !W.length && !infoSeule) return resolve(true);
+      const lignes = (arr, cls, champ) => { const items = []; arr.forEach(x => x[champ].forEach(m => items.push(`<div class="rm-it ${cls}"><b>${esc(x.e.nomFr)}</b> (${esc(x.e.classe)}) — ${esc(m)}</div>`))); return items.slice(0, 60).join("") + (items.length > 60 ? `<div class="rm-it ${cls}">… et ${items.length - 60} autre(s)</div>` : ""); };
+      const ok = r.length - new Set([...E, ...W]).size;
+      const back = document.createElement("div"); back.className = "rm-back";
+      back.innerHTML = `<div class="rm-box"><h3>${E.length ? "❌ Problèmes à corriger" : W.length ? "⚠️ Vérifications" : "✅ Tout est bon"}</h3>
+        <div class="rm-sum">${r.length} élève(s) contrôlé(s) · ✅ ${ok} sans problème · ⚠️ ${W.length} avec avertissement · ❌ ${E.length} avec erreur</div>
+        ${E.length ? `<div class="rm-sec err">Erreurs (${E.reduce((a, x) => a + x.errs.length, 0)})</div>` + lignes(E, "err", "errs") : ""}
+        ${W.length ? `<div class="rm-sec warn">Avertissements (${W.reduce((a, x) => a + x.warns.length, 0)})</div>` + lignes(W, "warn", "warns") : ""}
+        <div class="rm-act">${infoSeule ? '<button class="btn-blue" data-r="0">Fermer</button>' : '<button class="btn-blue" data-r="0">↩️ Annuler et corriger</button><button class="btn-orange" data-r="1">Continuer quand même</button>'}</div></div>`;
+      back.addEventListener("click", ev => { const b = ev.target.closest("button"); if (!b && ev.target !== back) return; back.remove(); resolve(!!b && b.dataset.r === "1"); });
+      document.body.appendChild(back);
+    });
+  }
+  $("btnControle").onclick = () => { const k = Object.keys(elevesData); if (!k.length) { alert("⚠️ Importez d’abord un fichier"); return; } rapport(k, true); };
+  ["genererTousBulletins", "telechargerTousPDF", "telechargerPDFUnique"].forEach(n => {
+    const f = window[n];
+    window[n] = async function () {
+      if (logoManquant()) return;
+      const k = Object.keys(elevesData);
+      if (k.length && !(await rapport(k))) return;
+      return f.apply(this, arguments);
+    };
+  });
+  const fe = window.telechargerPDFEleve;
+  window.telechargerPDFEleve = async function (key) {
+    if (logoManquant()) return;
+    if (elevesData[key] && !(await rapport([key]))) return;
+    return fe.apply(this, arguments);
+  };
+
+  /* ---- Synchronisation Google Sheets ---- */
+  try { $("syncLinks").value = localStorage.getItem("gb_sync") || ""; } catch (e) {}
+  $("syncLinks").addEventListener("input", () => { try { localStorage.setItem("gb_sync", $("syncLinks").value); } catch (e) {} });
+  function normaliser(u) {
+    let m;
+    if ((m = u.match(/spreadsheets\/d\/e\/([\w-]+)/))) {
+      if (/output=(csv|xlsx)/.test(u)) return u;
+      return `https://docs.google.com/spreadsheets/d/e/${m[1]}/pub?output=xlsx`;
+    }
+    if ((m = u.match(/spreadsheets\/d\/([\w-]+)/)) || (m = u.match(/^([\w-]{25,})$/))) return `https://docs.google.com/spreadsheets/d/${m[1]}/export?format=xlsx`;
+    return u;
+  }
+  async function synchroniser() {
+    const st = $("syncStatus"), lignes = $("syncLinks").value.split("\n").map(x => x.trim()).filter(Boolean);
+    if (!lignes.length) { st.style.color = "#b83232"; st.textContent = "⚠️ Collez au moins un lien"; return; }
+    st.style.color = "#555"; st.textContent = "⏳ Chargement…";
+    try {
+      const wb = XLSX.utils.book_new(), pris = new Set();
+      const add = (nom, ws) => { let n = String(nom).slice(0, 31), k = 2; while (pris.has(n)) n = String(nom).slice(0, 27) + "_" + k++; pris.add(n); XLSX.utils.book_append_sheet(wb, ws, n); };
+      for (const l of lignes) {
+        let nom = null, url = l;
+        if (l.includes("|")) { const p = l.split("|"); nom = p[0].trim(); url = p.slice(1).join("|").trim(); }
+        url = normaliser(url);
+        const r = await fetch(url);
+        if (!r.ok) throw new Error("Google a répondu " + r.status + " (le classeur est-il bien publié ?)");
+        if (/output=csv|format=csv|out:csv/.test(url)) { const w = XLSX.read(await r.text(), { type: "string" }); add(nom || "Feuille", w.Sheets[w.SheetNames[0]]); }
+        else { const w = XLSX.read(new Uint8Array(await r.arrayBuffer()), { type: "array" }); w.SheetNames.forEach(sn => add(sn, w.Sheets[sn])); }
+      }
+      importerWorkbook(wb);
+      const h = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+      st.style.color = "#12803b"; st.textContent = "✅ Synchronisé à " + h + " — " + Object.keys(elevesData).length + " élève(s)";
+    } catch (err) {
+      console.error(err); st.style.color = "#b83232";
+      st.textContent = "❌ " + (err instanceof TypeError ? "Impossible de lire le lien. Publiez le classeur sur le web (Fichier → Partager → Publier sur le web → Document entier → .xlsx) et collez ce lien." : err.message);
+    }
+  }
+  $("syncGo").onclick = synchroniser;
+})();
+</script>
+
+</body>
+</html>
