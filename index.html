@@ -279,6 +279,7 @@
     #loading .box { border-radius:16px; box-shadow:0 12px 40px rgba(0,0,0,.35); }
     #loading .box::before { content:""; display:block; width:34px; height:34px; margin:0 auto 12px; border:4px solid #dbe4f3; border-top-color:var(--navy); border-radius:50%; animation:gfspin .8s linear infinite; }
     .logo-upload-box.logo-missing { border:2px dashed #d62839 !important; background:#fff5f6 !important; }
+    .champ-manquant { border:2px solid #d62839 !important; background:#fff5f6 !important; box-shadow:0 0 0 4px rgba(214,40,57,.15) !important; animation:gfshake .35s 3; }
     .logo-shake { animation:gfshake .35s 3; }
     @keyframes gfshake { 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
     .sync-card { margin-bottom:14px; background:linear-gradient(135deg,#f4fbf6,#eaf7ee); border-color:#bfe3c9; }
@@ -324,7 +325,7 @@
 </div>
 
 <div class="container">
-  <h1 class="no-print"><svg class="logo" viewBox="0 0 512 512" width="46" height="46" aria-hidden="true"><defs><linearGradient id="lg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1a3a6b"/><stop offset="1" stop-color="#2f6bff"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#lg1)"/><rect x="138" y="96" width="236" height="300" rx="26" fill="#fff"/><rect x="170" y="136" width="120" height="22" rx="11" fill="#1a3a6b"/><rect x="170" y="186" width="172" height="14" rx="7" fill="#c9d4ea"/><rect x="170" y="218" width="172" height="14" rx="7" fill="#c9d4ea"/><rect x="170" y="250" width="172" height="14" rx="7" fill="#c9d4ea"/><rect x="170" y="282" width="96" height="14" rx="7" fill="#c9d4ea"/><circle cx="360" cy="372" r="64" fill="#ffb703"/><path d="M332 372l20 20 38-42" stroke="#fff" stroke-width="20" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="ttl">Bulletin Primaire<small>بيان النقط · Générateur de bulletins</small></span><button id="btnInstall" class="btn-blue" hidden>⬇️ Installer l’app</button></h1>
+  <h1 class="no-print"><svg class="logo" viewBox="0 0 512 512" width="46" height="46" aria-hidden="true"><defs><linearGradient id="lg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1a3a6b"/><stop offset="1" stop-color="#2f6bff"/></linearGradient></defs><rect width="512" height="512" rx="112" fill="url(#lg1)"/><rect x="138" y="96" width="236" height="300" rx="26" fill="#fff"/><rect x="170" y="136" width="120" height="22" rx="11" fill="#1a3a6b"/><rect x="170" y="186" width="172" height="14" rx="7" fill="#c9d4ea"/><rect x="170" y="218" width="172" height="14" rx="7" fill="#c9d4ea"/><rect x="170" y="250" width="172" height="14" rx="7" fill="#c9d4ea"/><rect x="170" y="282" width="96" height="14" rx="7" fill="#c9d4ea"/><circle cx="360" cy="372" r="64" fill="#ffb703"/><path d="M332 372l20 20 38-42" stroke="#fff" stroke-width="20" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="ttl">Bulletin Primaire<small>بيان النقط · Générateur de bulletins · v7</small></span><button id="btnInstall" class="btn-blue" hidden>⬇️ Installer l’app</button></h1>
 
   <div class="tabs no-print">
     <button class="tab-btn active" onclick="switchTab('tab-simple', this)"><span class="ti">👤</span>Élève</button>
@@ -349,8 +350,8 @@
         </select>
       </div>
       <div><label>Année scolaire / السنة الدراسية</label><input type="text" id="annee" placeholder="2026/2027"></div>
-      <div><label>Établissement (FR)</label><input type="text" id="etab" placeholder="Nom de l'école"></div>
-      <div><label>المؤسسة (AR)</label><input type="text" id="etabAr" placeholder="اسم المؤسسة" dir="rtl"></div>
+      <div><label>Établissement (FR)<span style="color:#d62839;font-weight:700"> * obligatoire</span></label><input type="text" id="etab" placeholder="Nom de l'école"></div>
+      <div><label>المؤسسة (AR)<span style="color:#d62839;font-weight:700"> * obligatoire</span></label><input type="text" id="etabAr" placeholder="اسم المؤسسة" dir="rtl"></div>
       <div><label>Nom du professeur / الأستاذ</label><input type="text" id="prof" placeholder="Nom du professeur"></div>
     </div>
 
@@ -414,8 +415,21 @@
 
     <div class="pick-card sync-card">
       <div class="pick-t">🔄 Synchroniser depuis Google Sheets</div>
-      <div class="sync-help">Collez <b>un lien par ligne</b> : le lien « Publier sur le web » du classeur (<i>Fichier → Partager → Publier sur le web → Document entier → Microsoft Excel (.xlsx)</i>), ou pour un seul onglet <code>6ème A | lien-csv</code>. Un clic sur « Actualiser » recharge toutes les notes.</div>
-      <textarea id="syncLinks" placeholder="https://docs.google.com/spreadsheets/d/e/2PACX-…/pub?output=xlsx"></textarea>
+      <div class="sync-help"><b>Méthode 1 — un onglet par classe</b> : partagez le classeur en <i>« Tous les utilisateurs disposant du lien · Lecteur »</i> (ou publiez-le sur le web), collez son lien sur une ligne, puis une ligne par classe :<br><code>CE6-1 | 1979649015</code> (le nombre = <code>gid</code> dans l’adresse de l’onglet : <code>…#gid=1979649015</code>).<br><b>Méthode 2 — Apps Script</b> (tous les onglets en un seul lien) : voir ci-dessous.</div>
+      <details class="sync-help"><summary><b>📋 Script Google Apps Script (méthode 2)</b></summary>
+        <ol style="margin:8px 0 8px 18px;padding:0"><li>Dans votre Google Sheet : <i>Extensions → Apps Script</i>, collez le code, changez la clé.</li><li><i>Déployer → Nouveau déploiement → Application Web</i> · Exécuter en tant que : <b>moi</b> · Accès : <b>Tout le monde</b> → Déployer, autorisez.</li><li>Copiez l’URL (<code>…/exec</code>) et ajoutez <code>?k=VOTRE_CLE</code> : collez-la ci-dessous.</li></ol>
+        <pre id="gsScript" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:11.5px;overflow:auto;white-space:pre">const CLE = "CHANGEZ-MOI";
+function doGet(e) {
+  const out = {};
+  if (e.parameter.k === CLE) {
+    SpreadsheetApp.getActive().getSheets().forEach(s => out[s.getName()] = s.getDataRange().getDisplayValues());
+  }
+  return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+}</pre>
+        <button class="btn-blue btn-small" id="gsCopy">📋 Copier le script</button>
+      </details>
+
+      <textarea id="syncLinks" placeholder="https://docs.google.com/spreadsheets/d/…/edit&#10;CE6-1 | 1979649015&#10;— ou — https://script.google.com/macros/s/…/exec?k=VOTRE_CLE"></textarea>
       <div class="pick-row"><button class="btn-blue" id="syncGo">🔄 Actualiser les notes</button><span id="syncStatus"></span></div>
     </div>
 
@@ -552,12 +566,22 @@ function supprimerLogo() {
   majEtatLogo();
 }
 /* Le logo est obligatoire pour générer un bulletin */
-function logoManquant() {
-  if (logoDataURL) return false;
-  alert("⚠️ Le logo de l’école est obligatoire pour générer un bulletin.\nAjoutez-le dans l’onglet « Élève », section « Logo de l’école ».");
+function logoManquant() {                  // vérifie les infos obligatoires : logo + nom de l'école (FR et AR)
+  const etab = document.getElementById("etab"), etabAr = document.getElementById("etabAr");
+  const manque = [];
+  if (!logoDataURL) manque.push("le logo de l’école");
+  if (!etab.value.trim()) manque.push("le nom de l’école (FR)");
+  if (!etabAr.value.trim()) manque.push("اسم المؤسسة (AR)");
+  if (!manque.length) return false;
+  alert("⚠️ Pour générer un bulletin, il faut renseigner :\n• " + manque.join("\n• ") + "\n\nCes champs sont dans l’onglet « Élève ».");
   switchTab("tab-simple", document.querySelector(".tab-btn"));
-  const box = document.querySelector(".logo-upload-box");
-  if (box) { box.scrollIntoView({ behavior: "smooth", block: "center" }); box.classList.add("logo-shake"); setTimeout(() => box.classList.remove("logo-shake"), 1300); }
+  const cibles = [];
+  if (!logoDataURL) cibles.push(document.querySelector(".logo-upload-box"));
+  if (!etab.value.trim()) cibles.push(etab);
+  if (!etabAr.value.trim()) cibles.push(etabAr);
+  cibles.forEach(c => { if (c) { c.classList.add("champ-manquant"); setTimeout(() => c.classList.remove("champ-manquant"), 4000); } });
+  const premier = etab.value.trim() ? (etabAr.value.trim() ? document.querySelector(".logo-upload-box") : etabAr) : etab;
+  if (premier) { premier.scrollIntoView({ behavior: "smooth", block: "center" }); if (premier.focus && premier.tagName === "INPUT") premier.focus({ preventScroll: true }); }
   return true;
 }
 
@@ -1294,6 +1318,13 @@ render();
   const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const BAREME = 10;                                   // note maximale du bulletin (/10)
 
+  /* ---- Nom de l'école mémorisé sur l'appareil ---- */
+  ["etab", "etabAr"].forEach(id => {
+    const el = $(id);
+    try { const v = localStorage.getItem("gb_" + id); if (v && !el.value) el.value = v; } catch (e) {}
+    el.addEventListener("input", () => { el.classList.remove("champ-manquant"); try { localStorage.setItem("gb_" + id, el.value); } catch (e) {} });
+  });
+
   /* ---- Année scolaire automatique (change toute seule chaque rentrée, en août) ---- */
   const anneeAuto = () => { const d = new Date(), y = d.getFullYear(), a = d.getMonth() >= 7 ? y : y - 1; return a + "/" + (a + 1); };
   const inp = $("annee"); let manuel = null;
@@ -1323,8 +1354,10 @@ render();
       if (!e.classe || e.classe === "—") warns.push("classe manquante");
       let any = false; const manq = [], hors = [], nonnum = [];
       (e.matieres || []).forEach(m => [[m.nf, m.matFR], [m.na, m.matAR]].forEach(([v, lab]) => {
+        lab = String(lab == null ? "" : lab).trim();
+        if (!lab) return;                                  // matière vide : sa note n'est pas vérifiée
         const t = String(v == null ? "" : v).trim();
-        if (t === "") { if (lab) manq.push(lab); return; }
+        if (t === "") { manq.push(lab); return; }
         any = true;
         if (!/^-?\d+([.,]\d+)?$/.test(t)) { nonnum.push((lab || "?") + " = « " + t + " »"); return; }
         const n = parseFloat(t.replace(",", "."));
@@ -1374,29 +1407,42 @@ render();
   /* ---- Synchronisation Google Sheets ---- */
   try { $("syncLinks").value = localStorage.getItem("gb_sync") || ""; } catch (e) {}
   $("syncLinks").addEventListener("input", () => { try { localStorage.setItem("gb_sync", $("syncLinks").value); } catch (e) {} });
+  const pubId = u => { const m = u.match(/spreadsheets\/d\/e\/([\w-]+)/); return m ? m[1] : null; };
+  const editId = u => { const m = u.match(/spreadsheets\/d\/([\w-]+)/); return (m && !/spreadsheets\/d\/e\//.test(u)) ? m[1] : (/^[\w-]{25,}$/.test(u) ? u : null); };
+  const gvizCsv = (id, gid) => `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&headers=0&gid=${gid}`;
   function normaliser(u) {
     let m;
-    if ((m = u.match(/spreadsheets\/d\/e\/([\w-]+)/))) {
-      if (/output=(csv|xlsx)/.test(u)) return u;
-      return `https://docs.google.com/spreadsheets/d/e/${m[1]}/pub?output=xlsx`;
-    }
-    if ((m = u.match(/spreadsheets\/d\/([\w-]+)/)) || (m = u.match(/^([\w-]{25,})$/))) return `https://docs.google.com/spreadsheets/d/${m[1]}/export?format=xlsx`;
+    if ((m = u.match(/spreadsheets\/d\/e\/([\w-]+)/))) return /output=(csv|xlsx)/.test(u) ? u : `https://docs.google.com/spreadsheets/d/e/${m[1]}/pub?output=xlsx`;
+    if ((m = editId(u))) { const g = u.match(/[#&?]gid=(\d+)/); return gvizCsv(m, g ? g[1] : 0); }
     return u;
   }
   async function synchroniser() {
     const st = $("syncStatus"), lignes = $("syncLinks").value.split("\n").map(x => x.trim()).filter(Boolean);
     if (!lignes.length) { st.style.color = "#b83232"; st.textContent = "⚠️ Collez au moins un lien"; return; }
     st.style.color = "#555"; st.textContent = "⏳ Chargement…";
+    let mode = "xlsx";
     try {
       const wb = XLSX.utils.book_new(), pris = new Set();
       const add = (nom, ws) => { let n = String(nom).slice(0, 31), k = 2; while (pris.has(n)) n = String(nom).slice(0, 27) + "_" + k++; pris.add(n); XLSX.utils.book_append_sheet(wb, ws, n); };
+      const basePub = lignes.map(pubId).find(Boolean), baseEdit = lignes.map(l => l.includes("|") ? null : editId(l)).find(Boolean);
+      const avecGid = lignes.some(l => /\|\s*\d+\s*$/.test(l));
       for (const l of lignes) {
         let nom = null, url = l;
         if (l.includes("|")) { const p = l.split("|"); nom = p[0].trim(); url = p.slice(1).join("|").trim(); }
-        url = normaliser(url);
+        if (/^\d+$/.test(url)) {                                   // « CE6-1 | 1979649015 » : gid de l'onglet
+          if (basePub) url = `https://docs.google.com/spreadsheets/d/e/${basePub}/pub?gid=${url}&single=true&output=csv`;
+          else if (baseEdit) url = gvizCsv(baseEdit, url);
+          else throw new Error("Pour « nom | gid », ajoutez sur une autre ligne le lien du classeur (lien d’édition ou lien publié).");
+        } else if (avecGid && !l.includes("|") && (pubId(url) || editId(url)) && !/output=csv|out:csv/.test(url)) continue;   // ligne « lien de base » seulement
+        else if (!/script\.google\.com\/macros\//.test(url)) url = normaliser(url);
+        mode = /script\.google\.com\/macros\//.test(url) ? "script" : /output=csv|format=csv|out:csv/.test(url) ? "csv" : "xlsx";
         const r = await fetch(url);
         if (!r.ok) throw new Error("Google a répondu " + r.status + " (le classeur est-il bien publié ?)");
-        if (/output=csv|format=csv|out:csv/.test(url)) { const w = XLSX.read(await r.text(), { type: "string" }); add(nom || "Feuille", w.Sheets[w.SheetNames[0]]); }
+        if (mode === "script") {
+          const j = await r.json(), noms = Object.keys(j);
+          if (!noms.length) throw new Error("Réponse vide : clé (?k=…) incorrecte ou classeur vide.");
+          noms.forEach(n => add(n, XLSX.utils.aoa_to_sheet(j[n])));
+        } else if (mode === "csv") { const w = XLSX.read(await r.text(), { type: "string" }); add(nom || "Feuille", w.Sheets[w.SheetNames[0]]); }
         else { const w = XLSX.read(new Uint8Array(await r.arrayBuffer()), { type: "array" }); w.SheetNames.forEach(sn => add(sn, w.Sheets[sn])); }
       }
       importerWorkbook(wb);
@@ -1404,10 +1450,15 @@ render();
       st.style.color = "#12803b"; st.textContent = "✅ Synchronisé à " + h + " — " + Object.keys(elevesData).length + " élève(s)";
     } catch (err) {
       console.error(err); st.style.color = "#b83232";
-      st.textContent = "❌ " + (err instanceof TypeError ? "Impossible de lire le lien. Publiez le classeur sur le web (Fichier → Partager → Publier sur le web → Document entier → .xlsx) et collez ce lien." : err.message);
+      st.textContent = "❌ " + (err instanceof TypeError
+        ? (mode === "xlsx" ? "Google bloque le téléchargement .xlsx depuis le navigateur. Utilisez « nom | gid » (un onglet par ligne) ou la méthode Apps Script ci-dessous."
+          : mode === "csv" ? "Lecture impossible : partagez le classeur en « Tous les utilisateurs disposant du lien · Lecteur » (ou publiez-le sur le web), puis réessayez."
+          : "Impossible de lire le lien (vérifiez le déploiement Apps Script : accès « Tout le monde » et connexion).")
+        : err.message);
     }
   }
   $("syncGo").onclick = synchroniser;
+  $("gsCopy").onclick = () => { navigator.clipboard.writeText($("gsScript").textContent).then(() => { $("gsCopy").textContent = "✅ Copié"; setTimeout(() => $("gsCopy").textContent = "📋 Copier le script", 2000); }).catch(() => alert("Sélectionnez le code et copiez-le (Ctrl+C).")); };
 })();
 </script>
 
