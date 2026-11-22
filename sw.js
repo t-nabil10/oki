@@ -1,9 +1,9 @@
 /* Service worker — fonctionne hors ligne après la 1re visite.
    Changez VERSION à chaque mise à jour du site pour forcer le rafraîchissement du cache. */
-const VERSION = "bulletins-v7";
-const CORE = ["./", "index.html", "manifest.webmanifest", "favicon.svg",
-  "favicon.ico", "icons/icon-32.png", "icons/icon-192.png", "icons/icon-256.png", "icons/icon-512.png",
-  "icons/icon-maskable-512.png", "icons/apple-touch-icon.png"];
+const VERSION = "bulletins-v8";
+const CORE = ["./", "index.html", "manifest.webmanifest", "favicon.svg"];          // indispensables
+const EXTRA = ["favicon.ico", "icons/icon-32.png", "icons/icon-192.png", "icons/icon-256.png", "icons/icon-512.png",
+  "icons/icon-maskable-512.png", "icons/apple-touch-icon.png"];                      // facultatifs : une icône absente ne bloque plus l'installation
 const LIBS = [
   "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js",
@@ -14,7 +14,7 @@ self.addEventListener("install", e => {
   e.waitUntil((async () => {
     const c = await caches.open(VERSION);
     await c.addAll(CORE);
-    await Promise.all(LIBS.map(u => c.add(u).catch(() => {})));
+    await Promise.all(EXTRA.concat(LIBS).map(u => c.add(u).catch(() => {})));
     self.skipWaiting();
   })());
 });
@@ -29,7 +29,7 @@ self.addEventListener("fetch", e => {
   if (r.method !== "GET") return;
   const u = new URL(r.url);
   if (r.mode === "navigate") {            // page : réseau d'abord (mises à jour), cache en secours
-    e.respondWith(fetch(r).then(x => { const cp = x.clone(); caches.open(VERSION).then(c => c.put("index.html", cp)); return x; })
+    e.respondWith(fetch(r).then(x => { if (x.ok) { const cp = x.clone(); caches.open(VERSION).then(c => c.put("index.html", cp)); } return x; })
       .catch(() => caches.match("index.html")));
     return;
   }

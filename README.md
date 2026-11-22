@@ -14,7 +14,8 @@ Contenu : `index.html` (l'application), `manifest.webmanifest`, `sw.js` (mode ho
 - **PC (Chrome / Edge)** : icône d'installation dans la barre d'adresse (ou bouton « ⬇️ Installer l'app »).
 
 ## Mise à jour
-Remplacez les fichiers sur GitHub et changez `VERSION` dans `sw.js` (ex. `bulletins-v2`).
+Remplacez les fichiers sur GitHub et changez `VERSION` dans `sw.js` (ex. `bulletins-v9`).
+Si vous changez l’adresse d’une bibliothèque dans `index.html` (ex. SheetJS), mettez-la aussi dans `LIBS` de `sw.js` ; un autre domaine que cdnjs/Google Fonts doit être ajouté à l’expression régulière du `fetch`, sinon elle ne marchera pas hors ligne.
 
 ## Bon à savoir
 - 1re ouverture : internet requis (polices et bibliothèques PDF/Excel), ensuite l'app marche hors ligne.
@@ -27,6 +28,13 @@ Le navigateur garde l'icône au moment de l'installation : **désinstallez** l'a
 
 ## Nouveautés
 - **ZIP des PDF** : un dossier par classe (`6A/Bulletin_Nom.pdf`).
-- **Synchro Google Sheets** : collez le lien « Publier sur le web » (Document entier → .xlsx) puis « Actualiser les notes ».
+- **Synchro Google Sheets** : lien de partage (« Lecteur ») + une ligne `Classe | gid` par onglet, ou Apps Script (voir l’onglet Sheets). Évitez « Publier sur le web » : les noms et notes deviennent publics.
 - **Contrôle des notes** avant génération (notes manquantes, hors barème /10, valeurs non numériques, doublons).
 - **Année scolaire automatique** : `2026/2027` (change chaque année en août ; modifiable à la main).
+
+## Version 8 (corrections)
+- Protection contre les caractères spéciaux (`<`, `&`, `"`) dans les noms et matières importés.
+- Mention « — » (et non « Insuffisant ») quand aucune note n'est saisie ; barème `/10` défini à un seul endroit.
+- PDF plus légers (JPEG, échelle 2) ; « Télécharger PDF » exporte tous les bulletins affichés.
+- Le formulaire « Élève » passe par le même contrôle des notes que la génération en masse (+ alerte matière en double).
+- `sw.js` : une icône manquante ne bloque plus l'installation hors ligne.
