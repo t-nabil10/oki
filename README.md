@@ -14,7 +14,7 @@ Contenu : `index.html` (l'application), `manifest.webmanifest`, `sw.js` (mode ho
 - **PC (Chrome / Edge)** : icône d'installation dans la barre d'adresse (ou bouton « ⬇️ Installer l'app »).
 
 ## Mise à jour
-Remplacez les fichiers sur GitHub et changez `VERSION` dans `sw.js` (ex. `bulletins-v9`).
+Remplacez les fichiers sur GitHub et changez `VERSION` dans `sw.js` (ex. `bulletins-v10`).
 Si vous changez l’adresse d’une bibliothèque dans `index.html` (ex. SheetJS), mettez-la aussi dans `LIBS` de `sw.js` ; un autre domaine que cdnjs/Google Fonts doit être ajouté à l’expression régulière du `fetch`, sinon elle ne marchera pas hors ligne.
 
 ## Bon à savoir
@@ -38,3 +38,10 @@ Le navigateur garde l'icône au moment de l'installation : **désinstallez** l'a
 - PDF plus légers (JPEG, échelle 2) ; « Télécharger PDF » exporte tous les bulletins affichés.
 - Le formulaire « Élève » passe par le même contrôle des notes que la génération en masse (+ alerte matière en double).
 - `sw.js` : une icône manquante ne bloque plus l'installation hors ligne.
+
+## Version 9
+- Champ « professeur » retiré.
+- **Brouillon automatique** du formulaire « Élève » (rechargement sans perte) + bouton « 🆕 Nouvel élève ».
+- **🖨️ Imprimer / PDF (texte net)** : le navigateur produit le PDF (texte sélectionnable, arabe correctement formé, fichier léger). Choisissez « Enregistrer au format PDF ». Un bulletin par page A4.
+- **Aperçu avant ZIP / PDF unique** : élèves par classe et nombre de bulletins à vérifier, avec « Générer » / « Annuler ».
+- Le ZIP (un PDF par élève) reste en image : jsPDF ne sait pas former l'arabe en texte.
