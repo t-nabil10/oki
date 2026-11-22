@@ -415,7 +415,7 @@
 
     <div class="pick-card sync-card">
       <div class="pick-t">🔄 Synchroniser depuis Google Sheets</div>
-      <div class="sync-help"><b>Méthode 1 — un onglet par classe</b> : partagez le classeur en <i>« Tous les utilisateurs disposant du lien · Lecteur »</i> (ou publiez-le sur le web), collez son lien sur une ligne, puis une ligne par classe :<br><code>CE6-1 | 1979649015</code> (le nombre = <code>gid</code> dans l’adresse de l’onglet : <code>…#gid=1979649015</code>).<br><b>Méthode 2 — Apps Script</b> (tous les onglets en un seul lien) : voir ci-dessous.</div>
+      <div class="sync-help"><b>Méthode 1 — un onglet par classe</b> : partagez le classeur en <i>« Tous les utilisateurs disposant du lien · Lecteur »</i> (ou publiez-le sur le web), collez son lien sur une ligne, puis une ligne par classe :<br><code>CE6-1 | 1979649015</code> (le nombre = <code>gid</code> dans l’adresse de l’onglet : <code>…#gid=1979649015</code>).<br><b>Méthode 2 — Apps Script</b> (tous les onglets en un seul lien) : voir ci-dessous.<br><span style="color:#b83232">⚠️ Ces fichiers contiennent les noms et notes d’élèves : ne les « publiez sur le web » que si nécessaire, et gardez la clé secrète.</span></div>
       <details class="sync-help"><summary><b>📋 Script Google Apps Script (méthode 2)</b></summary>
         <ol style="margin:8px 0 8px 18px;padding:0"><li>Dans votre Google Sheet : <i>Extensions → Apps Script</i>, collez le code, changez la clé.</li><li><i>Déployer → Nouveau déploiement → Application Web</i> · Exécuter en tant que : <b>moi</b> · Accès : <b>Tout le monde</b> → Déployer, autorisez.</li><li>Copiez l’URL (<code>…/exec</code>) et ajoutez <code>?k=VOTRE_CLE</code> : collez-la ci-dessous.</li></ol>
         <pre id="gsScript" style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:11.5px;overflow:auto;white-space:pre">const CLE = "CHANGEZ-MOI";
@@ -471,7 +471,7 @@ function doGet(e) {
         <label>Fichier<input id="gf-ghp" placeholder="config_bulletins.json" style="width:100%;box-sizing:border-box;padding:4px"></label>
         <label>Branche<input id="gf-ghb" placeholder="main" style="width:100%;box-sizing:border-box;padding:4px"></label>
         <label class="gf-w">Token (Contents : lecture/écriture)<input id="gf-ght" type="password" placeholder="github_pat_..." style="width:100%;box-sizing:border-box;padding:4px"></label>
-        <label style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="gf-ghm"> mémoriser le token ici</label></div>
+        <label style="display:flex;gap:4px;align-items:center"><input type="checkbox" id="gf-ghm"> mémoriser le token ici (déconseillé sur un appareil partagé)</label></div>
       <div class="gf-h"><button class="btn-green" id="gf-gs">☁️ Sauvegarder sur GitHub</button><button class="btn-blue" id="gf-gl">⬇️ Charger depuis GitHub</button><span id="gf-st" style="font-size:13px"></span></div>
       <div style="font-size:12px;color:#b83232;margin-top:6px">⚠️ Le fichier contient les noms des élèves : utilisez un dépôt <b>privé</b> et un token limité à ce seul dépôt.</div></div>
     <div id="gf-out"></div>
@@ -519,6 +519,8 @@ function doGet(e) {
 </div>
 
 <script>
+const BAREME = 10;   // note maximale du bulletin (/10) : une seule source pour tout le fichier
+const escH = t => String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 let logoDataURL = "";
 let elevesData = {};
 
@@ -681,7 +683,7 @@ function supprimerBloc(btn) {
   }
 }
 
-function genererBulletin() {
+async function genererBulletin() {
   if (logoManquant()) return;
   const nomFr = document.getElementById("nomFr").value || "—";
   const nomAr = document.getElementById("nomAr").value || "—";
@@ -708,35 +710,46 @@ function genererBulletin() {
   }).filter(Boolean);
 
   const eleveUnique = { nomFr, nomAr, classe, classeAr, matieres: infos };
+  if (window.controleForm && !(await window.controleForm(eleveUnique))) return;   // même contrôle que la génération en masse
   document.getElementById("bulletin").innerHTML = construireBulletinHTML(eleveUnique, sem, annee, etab, etabAr);
   document.getElementById("bulletin").style.display = "block";
   document.getElementById("bulletin").scrollIntoView({ behavior: "smooth" });
 }
 
-function telechargerPDF() {
+async function telechargerPDF() {
   if (logoManquant()) return;
   const bulletin = document.getElementById("bulletin");
-  if (bulletin.style.display === "none" || !bulletin.innerHTML.trim()) {
-    alert("⚠️ Khass t'generi l'bulletin 9bel");
+  if (!bulletin.innerHTML.trim() || bulletin.style.display === "none") {
+    alert("⚠️ Générez d’abord le bulletin.");
     return;
   }
   document.getElementById("loading").style.display = "flex";
   document.getElementById("progressText").textContent = "Génération...";
   const nom = (document.getElementById("nomFr").value || "eleve").replace(/\s+/g, "_");
   const sem = (document.getElementById("semestre").value || "semestre").replace(/\s+/g, "_").replace(/[\\/:*?"<>|]+/g, "-");
-
-  bulletinToCanvas(bulletin, { windowWidth: 1000 })
-    .then(canvas => {
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
-      ajouterCanvasAuPDF(doc, canvas);
-      sauverPDF(doc, `Bulletin_${nom}_${sem}.pdf`);
-      document.getElementById("loading").style.display = "none";
-    }).catch(err => {
-      console.error(err);
-      document.getElementById("loading").style.display = "none";
-      alert("❌ Mochkil f génération.");
-    });
+  // « Générer tous » affiche plusieurs bulletins : on les exporte tous (une page chacun)
+  const blocs = Array.from(bulletin.querySelectorAll(":scope > div[style*='page-break-after']")).map(d => d.innerHTML);
+  const pages = blocs.length ? blocs : [bulletin.innerHTML];
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+    for (let i = 0; i < pages.length; i++) {
+      const t = document.createElement("div");
+      t.style.cssText = "position:fixed;left:-9999px;top:0;width:910px;background:#fff;padding:20px";
+      t.innerHTML = pages[i];
+      document.body.appendChild(t);
+      try {
+        const canvas = await bulletinToCanvas(t);
+        if (i > 0) doc.addPage();
+        ajouterCanvasAuPDF(doc, canvas);
+      } finally { t.remove(); }
+    }
+    sauverPDF(doc, pages.length > 1 ? `Bulletins_${sem}.pdf` : `Bulletin_${nom}_${sem}.pdf`);
+  } catch (err) {
+    console.error(err);
+    alert("❌ Erreur lors de la génération du PDF.");
+  }
+  document.getElementById("loading").style.display = "none";
 }
 
 function importerFichier(event) {
@@ -803,7 +816,7 @@ function importerWorkbook(workbook) {
 /* ===== Qualité PDF : rendu net, une seule logique pour les 3 exports ===== */
 async function bulletinToCanvas(el, extra) {
   if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
-  return html2canvas(el, Object.assign({ scale: 3, useCORS: true, backgroundColor: '#ffffff', logging: false, imageTimeout: 15000 }, extra || {}));
+  return html2canvas(el, Object.assign({ scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false, imageTimeout: 15000 }, extra || {}));
 }
 function ajouterCanvasAuPDF(doc, canvas) {
   const pageW = 210, pageH = 297, mx = 8, my = 8;
@@ -811,7 +824,8 @@ function ajouterCanvasAuPDF(doc, canvas) {
   const ratio = canvas.width / canvas.height;
   let w = maxW, h = w / ratio;
   if (h > maxH) { h = maxH; w = h * ratio; }          // tient toujours sur UNE page A4, sans coupure
-  doc.addImage(canvas.toDataURL('image/png'), 'PNG', (pageW - w) / 2, my, w, h, undefined, 'FAST');
+  doc.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', (pageW - w) / 2, my, w, h, undefined, 'FAST');
+  canvas.width = canvas.height = 0;   // libère la mémoire (important sur iPhone)
 }
 
 function afficherListeEleves() {
@@ -828,12 +842,12 @@ function afficherListeEleves() {
     const e = elevesData[key];
     html += `<tr>
       <td>${idx + 1}</td>
-      <td>${e.nomFr}</td>
-      <td style="font-family:'Amiri','Cairo','Traditional Arabic',Arial;font-size:16px;">${e.nomAr}</td>
-      <td>${e.classe}</td>
-      <td style="font-family:'Amiri','Cairo','Traditional Arabic',Arial;font-size:16px;">${e.classeAr}</td>
+      <td>${escH(e.nomFr)}</td>
+      <td style="font-family:'Amiri','Cairo','Traditional Arabic',Arial;font-size:16px;">${escH(e.nomAr)}</td>
+      <td>${escH(e.classe)}</td>
+      <td style="font-family:'Amiri','Cairo','Traditional Arabic',Arial;font-size:16px;">${escH(e.classeAr)}</td>
       <td>${e.matieres.length}</td>
-      <td><button class="btn-blue btn-small" onclick="voirBulletin('${key.replace(/'/g, "\\'")}')">👁️ Voir</button> <button class="btn-green btn-small" onclick="telechargerPDFEleve('${key.replace(/'/g, "\\'")}')">📄 PDF</button></td>
+      <td><button class="btn-blue btn-small" onclick="voirBulletin(Object.keys(elevesData)[${idx}])">👁️ Voir</button> <button class="btn-green btn-small" onclick="telechargerPDFEleve(Object.keys(elevesData)[${idx}])">📄 PDF</button></td>
     </tr>`;
   });
   html += "</tbody></table>";
@@ -885,50 +899,32 @@ function construireBulletinHTML(eleve, sem, annee, etab, etabAr) {
     const naAff = !isNaN(na) ? na.toFixed(2) : "—";
 
     let cellFr = "";
-    if (info.uFr) cellFr = `<td class="cell-unite" rowspan="${cellulesFr[idx]}">${info.uFr}</td>`;
+    if (info.uFr) cellFr = `<td class="cell-unite" rowspan="${cellulesFr[idx]}">${escH(info.uFr)}</td>`;
 
     let cellAr = "";
-    if (info.uAr) cellAr = `<td class="cell-unite-ar" rowspan="${cellulesAr[idx]}">${info.uAr}</td>`;
+    if (info.uAr) cellAr = `<td class="cell-unite-ar" lang="ar" rowspan="${cellulesAr[idx]}">${escH(info.uAr)}</td>`;
 
     htmlLignes += `<tr>
       ${cellFr}
-      <td class="nom-fr">${info.matFR || "—"}</td>
+      <td class="nom-fr">${escH(info.matFR || "—")}</td>
       <td>${nfAff}</td>
       <td>${naAff}</td>
-      <td class="nom-ar">${info.matAR || "—"}</td>
+      <td class="nom-ar" lang="ar">${escH(info.matAR || "—")}</td>
       ${cellAr}
     </tr>`;
   });
 
-  // 🔑 MOYENNE FR (m7souba, ma katbanch)
-  const moyGenFR = (() => {
+  // Moyenne générale (null si aucune note saisie)
+  const moyenne = champ => {
     let s = 0, c = 0;
-    infos.forEach(i => { const n = parseFloat(i.nf); if (!isNaN(n)) { s += n; c++; } });
-    return c > 0 ? s / c : 0;
-  })();
-
-  // 🔑 MOYENNE AR (m7souba, ma katbanch)
-  const moyGenAR = (() => {
-    let s = 0, c = 0;
-    infos.forEach(i => { const n = parseFloat(i.na); if (!isNaN(n)) { s += n; c++; } });
-    return c > 0 ? s / c : 0;
-  })();
-
-  // 🔑 APPRÉCIATION FR
-  let mentionFr = "";
-  if (moyGenFR >= 9)       mentionFr = "Excellent";
-  else if (moyGenFR >= 8)  mentionFr = "Très bien";
-  else if (moyGenFR >= 7)  mentionFr = "Bien";
-  else if (moyGenFR >= 5)  mentionFr = "Passable";
-  else                     mentionFr = "Insuffisant";
-
-  // 🔑 APPRÉCIATION AR
-  let mentionAr = "";
-  if (moyGenAR >= 9)       mentionAr = "ممتاز";
-  else if (moyGenAR >= 8)  mentionAr = "جيد جداً";
-  else if (moyGenAR >= 7)  mentionAr = "جيد";
-  else if (moyGenAR >= 5)  mentionAr = "مقبول";
-  else                     mentionAr = "ضعيف";
+    infos.forEach(i => { const n = parseFloat(i[champ]); if (!isNaN(n)) { s += n; c++; } });
+    return c > 0 ? s / c : null;
+  };
+  const moyGenFR = moyenne("nf"), moyGenAR = moyenne("na");
+  const r = BAREME / 10;   // seuils exprimés pour un barème /10
+  const mention = (m, L) => m === null ? "—" : m >= 9 * r ? L[0] : m >= 8 * r ? L[1] : m >= 7 * r ? L[2] : m >= 5 * r ? L[3] : L[4];
+  const mentionFr = mention(moyGenFR, ["Excellent", "Très bien", "Bien", "Passable", "Insuffisant"]);
+  const mentionAr = mention(moyGenAR, ["ممتاز", "جيد جداً", "جيد", "مقبول", "ضعيف"]);
 
   const logoHTML = logoDataURL
     ? `<img src="${logoDataURL}" alt="Logo école">`
@@ -936,19 +932,19 @@ function construireBulletinHTML(eleve, sem, annee, etab, etabAr) {
 
   return `
     <div class="bulletin-header">
-      <div class="fr"><strong>${etab}</strong><br>Année scolaire : ${annee}</div>
+      <div class="fr"><strong>${escH(etab)}</strong><br>Année scolaire : ${escH(annee)}</div>
       <div class="logo-zone">${logoHTML}</div>
-      <div class="ar"><strong>${etabAr}</strong><br>السنة الدراسية: ${annee}</div>
+      <div class="ar" lang="ar"><strong>${escH(etabAr)}</strong><br>السنة الدراسية: ${escH(annee)}</div>
     </div>
     <div class="bulletin-title">
       BULLETIN SCOLAIRE — <span style="font-family:'Amiri','Cairo','Traditional Arabic', Arial; font-size:22px;">بيان النقط</span>
-      <div style="font-size:12px; margin-top:2px;">${sem}</div>
+      <div style="font-size:12px; margin-top:2px;">${escH(sem)}</div>
     </div>
     <div class="info-eleve">
-      <div><strong>Nom :</strong> ${eleve.nomFr}</div>
-      <div class="info-ar"><strong>الاسم:</strong> ${eleve.nomAr}</div>
-      <div><strong>Classe :</strong> ${eleve.classe}</div>
-      <div class="info-ar"><strong>القسم:</strong> ${eleve.classeAr}</div>
+      <div><strong>Nom :</strong> ${escH(eleve.nomFr)}</div>
+      <div class="info-ar" lang="ar"><strong>الاسم:</strong> ${escH(eleve.nomAr)}</div>
+      <div><strong>Classe :</strong> ${escH(eleve.classe)}</div>
+      <div class="info-ar" lang="ar"><strong>القسم:</strong> ${escH(eleve.classeAr)}</div>
     </div>
     <table class="bulletin-table">
       <colgroup>
@@ -960,13 +956,13 @@ function construireBulletinHTML(eleve, sem, annee, etab, etabAr) {
         <col class="col-unite-ar">
       </colgroup>
       <thead><tr>
-        <th>Unité</th><th>Matière</th><th>Note /10</th><th>النقطة \\ 10</th>
+        <th>Unité</th><th>Matière</th><th>Note /${BAREME}</th><th>النقطة \\ ${BAREME}</th>
         <th class="th-ar">المادة</th><th class="th-ar">الوحدة</th>
       </tr></thead>
       <tbody>${htmlLignes}</tbody>
     </table>
     
-    <!-- 🔑 APPRÉCIATIONS GHIR (bla moyennes) -->
+    <!-- Appréciations (les moyennes ne sont pas affichées) -->
     <div class="appreciation-box">
       <div class="label">Appréciations Générales</div>
       
@@ -992,7 +988,7 @@ function construireBulletinHTML(eleve, sem, annee, etab, etabAr) {
 function genererTousBulletins() {
   if (logoManquant()) return;
   const keys = Object.keys(elevesData);
-  if (keys.length === 0) { alert("⚠️ Khass t'importi fichier 9bel"); return; }
+  if (keys.length === 0) { alert("⚠️ Importez d’abord un fichier."); return; }
   const sem = document.getElementById("semestre").value || "—";
   const annee = document.getElementById("annee").value || "—";
   const etab = document.getElementById("etab").value || "—";
@@ -1011,7 +1007,7 @@ function genererTousBulletins() {
 async function telechargerTousPDF() {
   if (logoManquant()) return;
   const keys = Object.keys(elevesData);
-  if (keys.length === 0) { alert("⚠️ Khass t'importi fichier 9bel"); return; }
+  if (keys.length === 0) { alert("⚠️ Importez d’abord un fichier."); return; }
   const sem = document.getElementById("semestre").value || "—";
   const annee = document.getElementById("annee").value || "—";
   const etab = document.getElementById("etab").value || "—";
@@ -1063,7 +1059,7 @@ async function telechargerTousPDF() {
 async function telechargerPDFUnique() {
   if (logoManquant()) return;
   const keys = Object.keys(elevesData);
-  if (keys.length === 0) { alert("⚠️ Khass t'importi fichier 9bel"); return; }
+  if (keys.length === 0) { alert("⚠️ Importez d’abord un fichier."); return; }
   const sem = document.getElementById("semestre").value || "—";
   const annee = document.getElementById("annee").value || "—";
   const etab = document.getElementById("etab").value || "—";
@@ -1316,7 +1312,6 @@ render();
   const $ = id => document.getElementById(id);
   const esc = t => String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
   const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  const BAREME = 10;                                   // note maximale du bulletin (/10)
 
   /* ---- Nom de l'école mémorisé sur l'appareil ---- */
   ["etab", "etabAr"].forEach(id => {
@@ -1363,6 +1358,9 @@ render();
         const n = parseFloat(t.replace(",", "."));
         if (n < 0 || n > BAREME) hors.push((lab || "?") + " = " + t);
       }));
+      const vm = {}, dup = [];
+      (e.matieres || []).forEach(m => { const l = (m.matFR || m.matAR || "").trim(); if (!l) return; const k = l + "|" + (m.uFr || "") + "|" + (m.uAr || ""); if (vm[k]) dup.push(l); vm[k] = 1; });
+      if (dup.length) warns.push("matière en double : " + [...new Set(dup)].join(", "));
       if (!any) errs.push("aucune note saisie");
       if (hors.length) errs.push("note hors barème (0 à " + BAREME + ") : " + hors.join(", "));
       if (nonnum.length) warns.push("valeur non numérique : " + nonnum.join(", "));
@@ -1387,6 +1385,7 @@ render();
       document.body.appendChild(back);
     });
   }
+  window.controleForm = e => { elevesData.__form__ = e; return rapport(["__form__"]).finally(() => { delete elevesData.__form__; }); };
   $("btnControle").onclick = () => { const k = Object.keys(elevesData); if (!k.length) { alert("⚠️ Importez d’abord un fichier"); return; } rapport(k, true); };
   ["genererTousBulletins", "telechargerTousPDF", "telechargerPDFUnique"].forEach(n => {
     const f = window[n];
