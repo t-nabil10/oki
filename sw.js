@@ -1,6 +1,6 @@
 /* Service worker — fonctionne hors ligne après la 1re visite.
    Changez VERSION à chaque mise à jour du site pour forcer le rafraîchissement du cache. */
-const VERSION = "bulletins-v9";
+const VERSION = "bulletins-v10";
 const CORE = ["./", "index.html", "manifest.webmanifest", "favicon.svg"];          // indispensables
 const EXTRA = ["favicon.ico", "icons/icon-32.png", "icons/icon-192.png", "icons/icon-256.png", "icons/icon-512.png",
   "icons/icon-maskable-512.png", "icons/apple-touch-icon.png"];                      // facultatifs : une icône absente ne bloque plus l'installation

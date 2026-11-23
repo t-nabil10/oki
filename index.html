@@ -1385,6 +1385,8 @@ render();
   /* ---- Contrôle des notes ---- */
   function controle(keys) {
     const res = [], vus = {};
+    // « vide » = rien, espaces (même invisibles) ou simple tiret/point : l'unité peut être remplie, la matière non
+    const vide = t => /^[\s\u200b-\u200f\u202a-\u202e\u00a0\-–—_.\/\\]*$/.test(String(t == null ? "" : t));
     keys.forEach(k => {
       const e = elevesData[k], errs = [], warns = [];
       const id = (e.nomFr + "|" + e.classe).toLowerCase();
@@ -1392,8 +1394,8 @@ render();
       if (!e.classe || e.classe === "—") warns.push("classe manquante");
       let any = false; const manq = [], hors = [], nonnum = [];
       (e.matieres || []).forEach(m => [[m.nf, m.matFR], [m.na, m.matAR]].forEach(([v, lab]) => {
-        lab = String(lab == null ? "" : lab).trim();
-        if (!lab) return;                                  // matière vide : sa note n'est pas vérifiée
+        if (vide(lab)) return;                             // matière vide (unité remplie ou non) : sa note n'est pas vérifiée
+        lab = String(lab).trim();
         const t = String(v == null ? "" : v).trim();
         if (t === "") { manq.push(lab); return; }
         any = true;
@@ -1402,7 +1404,7 @@ render();
         if (n < 0 || n > BAREME) hors.push((lab || "?") + " = " + t);
       }));
       const vm = {}, dup = [];
-      (e.matieres || []).forEach(m => { const l = (m.matFR || m.matAR || "").trim(); if (!l) return; const k = l + "|" + (m.uFr || "") + "|" + (m.uAr || ""); if (vm[k]) dup.push(l); vm[k] = 1; });
+      (e.matieres || []).forEach(m => { const l = String(!vide(m.matFR) ? m.matFR : !vide(m.matAR) ? m.matAR : "").trim(); if (!l) return; const k = l + "|" + (m.uFr || "") + "|" + (m.uAr || ""); if (vm[k]) dup.push(l); vm[k] = 1; });
       if (dup.length) warns.push("matière en double : " + [...new Set(dup)].join(", "));
       if (!any) errs.push("aucune note saisie");
       if (hors.length) errs.push("note hors barème (0 à " + BAREME + ") : " + hors.join(", "));
