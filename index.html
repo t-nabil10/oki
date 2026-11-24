@@ -205,9 +205,12 @@
   .signature {
     margin-top: 25px;
     display: flex;
-    justify-content: flex-end;
+    flex-direction: column;
+    align-items: center;
     page-break-inside: avoid;
   }
+  .signature .cachet { display: block; max-height: 190px; max-width: 420px; object-fit: contain; margin: 2px auto 0; }
+  .signature .sign-space { height: 130px; }   /* place pour signer à la main si aucune image n'est chargée */
   .signature .sign-dir {
     text-align: center; font-size: 14px; color: #000;
     font-weight: bold; padding: 8px 20px;
@@ -366,6 +369,13 @@
       <input type="file" id="logoInput" accept="image/*" onchange="chargerLogo(event)" style="padding:6px;border:1px solid #ccc;border-radius:6px;background:#fff;font-size:13px;">
       <div class="logo-preview" id="logoPreview" style="width:60px;height:60px;border:2px dashed #ccc;border-radius:8px;display:flex;align-items:center;justify-content:center;background:#fff;overflow:hidden;font-size:11px;color:#999;">Aucun logo</div>
       <button class="btn-red btn-small" onclick="supprimerLogo()">✖ Supprimer</button>
+    </div>
+
+    <div class="logo-upload-box" id="cachetBox" style="display:flex; align-items:center; gap:15px; flex-wrap:wrap; padding:10px 15px; background:#f5f7fa; border-radius:8px; margin-bottom:15px;">
+      <label for="cachetInput" style="font-weight:600;color:#1a3a6b;font-size:14px;">Cachet et signature de la direction <span style="color:#777;font-weight:400">(facultatif, PNG transparent conseillé)</span> :</label>
+      <input type="file" id="cachetInput" accept="image/*" onchange="chargerCachet(event)" style="padding:6px;border:1px solid #ccc;border-radius:6px;background:#fff;font-size:13px;">
+      <div id="cachetPreview" style="width:90px;height:60px;border:2px dashed #ccc;border-radius:8px;display:flex;align-items:center;justify-content:center;background:#fff;overflow:hidden;font-size:11px;color:#999;">Aucune image</div>
+      <button class="btn-red btn-small" onclick="supprimerCachet()">✖ Supprimer</button>
     </div>
 
     <h3 class="section-title">📖 Saisie des notes / إدخال النقط</h3>
@@ -532,6 +542,7 @@ function doGet(e) {
 const BAREME = 10;   // note maximale du bulletin (/10) : une seule source pour tout le fichier
 const escH = t => String(t == null ? "" : t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 let logoDataURL = "";
+let cachetDataURL = "";
 let elevesData = {};
 
 function switchTab(tabId, btn) {
@@ -576,6 +587,37 @@ function supprimerLogo() {
   document.getElementById("logoPreview").innerHTML = "Aucun logo";
   try { localStorage.removeItem("gb_logo"); } catch (e) {}
   majEtatLogo();
+}
+/* Cachet + signature de la direction (facultatif) */
+function setCachet(url) {
+  cachetDataURL = url;
+  document.getElementById("cachetPreview").innerHTML = `<img src="${url}" alt="Cachet" style="max-width:100%;max-height:100%;object-fit:contain;">`;
+  try { localStorage.setItem("gb_cachet", url); } catch (e) {}
+}
+function chargerCachet(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {                       // réduit (max 1000 px) en gardant la transparence
+      if (!img.width || !img.height) { setCachet(e.target.result); return; }
+      const k = Math.min(1, 1000 / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.max(1, Math.round(img.width * k)); c.height = Math.max(1, Math.round(img.height * k));
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      setCachet(c.toDataURL("image/png"));
+    };
+    img.onerror = function() { setCachet(e.target.result); };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+function supprimerCachet() {
+  cachetDataURL = "";
+  document.getElementById("cachetInput").value = "";
+  document.getElementById("cachetPreview").innerHTML = "Aucune image";
+  try { localStorage.removeItem("gb_cachet"); } catch (e) {}
 }
 /* Le logo est obligatoire pour générer un bulletin */
 function logoManquant() {                  // vérifie les infos obligatoires : logo + nom de l'école (FR et AR)
@@ -998,6 +1040,7 @@ function construireBulletinHTML(eleve, sem, annee, etab, etabAr) {
     
     <div class="signature">
       <div class="sign-dir">Signature de la direction<br>توقيع الإدارة</div>
+      ${cachetDataURL ? `<img class="cachet" src="${cachetDataURL}" alt="Cachet et signature">` : '<div class="sign-space"></div>'}
     </div>
   `;
 }
@@ -1176,6 +1219,7 @@ function telechargerModele() {
 
 window.addEventListener("DOMContentLoaded", () => {
   try { const l = localStorage.getItem("gb_logo"); if (l) setLogo(l); } catch (e) {}
+  try { const c = localStorage.getItem("gb_cachet"); if (c) setCachet(c); } catch (e) {}
   majEtatLogo();
   ajouterGroupeLangue(groupeLangueFr);
   ajouterGroupeAutres(groupeAutres);
