@@ -45,3 +45,6 @@ Le navigateur garde l'icône au moment de l'installation : **désinstallez** l'a
 - **🖨️ Imprimer / PDF (texte net)** : le navigateur produit le PDF (texte sélectionnable, arabe correctement formé, fichier léger). Choisissez « Enregistrer au format PDF ». Un bulletin par page A4.
 - **Aperçu avant ZIP / PDF unique** : élèves par classe et nombre de bulletins à vérifier, avec « Générer » / « Annuler ».
 - Le ZIP (un PDF par élève) reste en image : jsPDF ne sait pas former l'arabe en texte.
+
+## Version 11
+- **PDF par classe** : choisissez une classe dans la liste → « 📄 PDF de la classe choisie », ou « 📚 Un PDF par classe (ZIP) » pour obtenir un PDF pour chaque classe dans un seul ZIP.

@@ -414,6 +414,9 @@
       <button class="btn-green" onclick="genererTousBulletins()">✅ Générer tous les bulletins</button>
       <button class="btn-orange" onclick="telechargerTousPDF()">📦 ZIP des PDF (par classe)</button>
       <button class="btn-blue" onclick="telechargerPDFUnique()">📄 PDF unique (tous les élèves)</button>
+      <select id="selClasse" style="padding:10px;border-radius:8px;border:1px solid #c9d3e6;font-size:14px"><option value="">Toutes les classes</option></select>
+      <button class="btn-blue" onclick="telechargerPDFUnique(document.getElementById('selClasse').value)">📄 PDF de la classe choisie</button>
+      <button class="btn-blue" onclick="telechargerPDFParClasse()">📚 Un PDF par classe (ZIP)</button>
       <button class="btn-red" onclick="imprimerBulletin()">🖨️ Imprimer / PDF (texte net)</button>
       <button class="btn-purple" id="btnControle">🔍 Contrôler les notes</button>
       <button class="btn-red" onclick="viderEleves()">🗑️ Vider la liste</button>
@@ -835,7 +838,14 @@ function ajouterCanvasAuPDF(doc, canvas) {
   canvas.width = canvas.height = 0;   // libère la mémoire (important sur iPhone)
 }
 
+function remplirClasses() {
+  const sel = document.getElementById("selClasse"); if (!sel) return;
+  const cur = sel.value, cl = [...new Set(Object.keys(elevesData).map(cleClasse))].sort();
+  sel.innerHTML = '<option value="">Toutes les classes</option>' + cl.map(c => `<option value="${escH(c)}">${escH(c)} (${Object.keys(elevesData).filter(k => cleClasse(k) === c).length})</option>`).join("");
+  if (cl.includes(cur)) sel.value = cur;
+}
 function afficherListeEleves() {
+  remplirClasses();
   const conteneur = document.getElementById("elevesList");
   const keys = Object.keys(elevesData);
   if (keys.length === 0) {
@@ -1063,50 +1073,82 @@ async function telechargerTousPDF() {
   alert(`✅ ${keys.length} PDF générés${zip ? " dans un fichier ZIP (un dossier par classe)" : ""} !`);
 }
 
-async function telechargerPDFUnique() {
-  if (logoManquant()) return;
-  const keys = Object.keys(elevesData);
-  if (keys.length === 0) { alert("⚠️ Importez d’abord un fichier."); return; }
+const cleClasse = k => elevesData[k].classe || "—";
+const nomSur = t => String(t).replace(/[\\/:*?"<>|\s]+/g, "_");
+
+// Construit un PDF (un bulletin par page) pour une liste d'élèves
+async function construirePDF(keys, libelle) {
   const sem = document.getElementById("semestre").value || "—";
   const annee = document.getElementById("annee").value || "—";
   const etab = document.getElementById("etab").value || "—";
   const etabAr = document.getElementById("etabAr").value || "—";
-
-  document.getElementById("loading").style.display = "flex";
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
-
-  const pageW = 210, pageH = 297, marginX = 8, marginY = 8;
-  const maxW = pageW - 2 * marginX, maxH = pageH - 2 * marginY;
-
-  let premierePage = true;
-
   for (let i = 0; i < keys.length; i++) {
-    const key = keys[i];
-    const e = elevesData[key];
-    document.getElementById("progressText").textContent = `${i + 1} / ${keys.length} — ${e.nomFr}`;
-
+    const e = elevesData[keys[i]];
+    document.getElementById("progressText").textContent = `${libelle ? libelle + " · " : ""}${i + 1} / ${keys.length} — ${e.nomFr}`;
     const tempDiv = document.createElement("div");
-    tempDiv.style.position = "fixed"; tempDiv.style.left = "-9999px"; tempDiv.style.top = "0";
-    tempDiv.style.width = "910px"; tempDiv.style.background = "#fff"; tempDiv.style.padding = "20px";
+    tempDiv.style.cssText = "position:fixed;left:-9999px;top:0;width:910px;background:#fff;padding:20px";
     tempDiv.innerHTML = construireBulletinHTML(e, sem, annee, etab, etabAr);
     document.body.appendChild(tempDiv);
-
     try {
       const canvas = await bulletinToCanvas(tempDiv);
-      if (!premierePage) doc.addPage();
-      premierePage = false;
+      if (i > 0) doc.addPage();
       ajouterCanvasAuPDF(doc, canvas);
     } catch (err) { console.error("Erreur pour", e.nomFr, err); }
     tempDiv.remove();
     await new Promise(r => setTimeout(r, 200));
   }
+  return doc;
+}
 
-  const semSafe = sem.replace(/\s+/g, "_").replace(/[\\/:*?"<>|]+/g, "-");
-  doc.save(`Bulletins_Tous_Eleves_${semSafe}.pdf`);
+// Un seul PDF : tous les élèves, ou seulement ceux de la classe choisie
+async function telechargerPDFUnique(classe) {
+  if (logoManquant()) return;
+  let keys = Object.keys(elevesData);
+  if (keys.length === 0) { alert("⚠️ Importez d’abord un fichier."); return; }
+  if (typeof classe === "string" && classe) keys = keys.filter(k => cleClasse(k) === classe);
+  if (keys.length === 0) { alert("⚠️ Aucun élève dans cette classe."); return; }
+  const sem = document.getElementById("semestre").value || "—";
+  document.getElementById("loading").style.display = "flex";
+  try {
+    const doc = await construirePDF(keys, classe || "");
+    sauverPDF(doc, classe ? `Bulletins_${nomSur(classe)}_${nomSur(sem)}.pdf` : `Bulletins_Tous_Eleves_${nomSur(sem)}.pdf`);
+    document.getElementById("loading").style.display = "none";
+    alert(`✅ PDF généré : ${keys.length} élève(s)${classe ? " — " + classe : ""}.`);
+  } catch (err) {
+    console.error(err);
+    document.getElementById("loading").style.display = "none";
+    alert("❌ Erreur lors de la génération du PDF.");
+  }
+}
 
-  document.getElementById("loading").style.display = "none";
-  alert(`✅ PDF unique généré avec ${keys.length} élève(s) !`);
+// Un PDF par classe, rangés dans un seul ZIP
+async function telechargerPDFParClasse() {
+  if (logoManquant()) return;
+  const keys = Object.keys(elevesData);
+  if (keys.length === 0) { alert("⚠️ Importez d’abord un fichier."); return; }
+  const groupes = {};
+  keys.forEach(k => (groupes[cleClasse(k)] = groupes[cleClasse(k)] || []).push(k));
+  const sem = document.getElementById("semestre").value || "—";
+  const annee = document.getElementById("annee").value || "—";
+  document.getElementById("loading").style.display = "flex";
+  try {
+    const zip = new JSZip();
+    for (const c of Object.keys(groupes).sort()) {
+      const doc = await construirePDF(groupes[c], c);
+      zip.file(`Bulletins_${nomSur(c)}_${nomSur(sem)}.pdf`, doc.output("blob"));
+    }
+    document.getElementById("progressText").textContent = "Création du ZIP…";
+    const blob = await zip.generateAsync({ type: "blob" });
+    sauverBlob(blob, `Bulletins_par_classe_${nomSur(annee)}_${nomSur(sem)}.zip`);
+    document.getElementById("loading").style.display = "none";
+    alert(`✅ ${Object.keys(groupes).length} PDF (un par classe) dans le ZIP.`);
+  } catch (err) {
+    console.error(err);
+    document.getElementById("loading").style.display = "none";
+    alert("❌ Erreur lors de la génération.");
+  }
 }
 
 function viderEleves() {
@@ -1436,11 +1478,12 @@ render();
   }
   window.controleForm = e => { elevesData.__form__ = e; return rapport(["__form__"]).finally(() => { delete elevesData.__form__; }); };
   $("btnControle").onclick = () => { const k = Object.keys(elevesData); if (!k.length) { alert("⚠️ Importez d’abord un fichier"); return; } rapport(k, true); };
-  ["genererTousBulletins", "telechargerTousPDF", "telechargerPDFUnique"].forEach(n => {
+  ["genererTousBulletins", "telechargerTousPDF", "telechargerPDFUnique", "telechargerPDFParClasse"].forEach(n => {
     const f = window[n];
-    window[n] = async function () {
+    window[n] = async function (classe) {
       if (logoManquant()) return;
-      const k = Object.keys(elevesData);
+      let k = Object.keys(elevesData);
+      if (typeof classe === "string" && classe) k = k.filter(x => (elevesData[x].classe || "—") === classe);
       if (k.length && !(await rapport(k, false, n !== "genererTousBulletins"))) return;
       return f.apply(this, arguments);
     };
